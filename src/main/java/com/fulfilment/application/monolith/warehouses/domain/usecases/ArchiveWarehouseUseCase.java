@@ -24,10 +24,15 @@ public class ArchiveWarehouseUseCase implements ArchiveWarehouseOperation {
 
     private final WarehouseStore warehouseStore;
 
+    /**
+     * Constructor injection for WarehouseStore dependency.
+     * This allows for better testability and separation of concerns.
+     */
     public ArchiveWarehouseUseCase(WarehouseStore warehouseStore) {
         this.warehouseStore = warehouseStore;
     }
     
+    /** Archives a warehouse by its business unit code. */
     @Override
     public void archive(String businessUnitCode) {
 

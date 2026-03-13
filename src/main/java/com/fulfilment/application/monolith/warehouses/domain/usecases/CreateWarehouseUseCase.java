@@ -26,12 +26,25 @@ public class CreateWarehouseUseCase implements CreateWarehouseOperation {
     private final WarehouseStore warehouseStore;
     private final LocationResolver locationResolver;
 
+    /**
+     * Constructor injection for dependencies.
+     * This allows for better testability and separation of concerns.
+     */
     public CreateWarehouseUseCase(WarehouseStore warehouseStore,
                                   LocationResolver locationResolver) {
         this.warehouseStore = warehouseStore;
         this.locationResolver = locationResolver;
     }
 
+    /**
+     * Creates a new warehouse.
+     * Validates input, checks location and capacity constraints,
+     * and delegates the creation operation to the warehouse store.
+     *
+     * @param warehouse the warehouse to create
+     * @throws IllegalArgumentException if the warehouse parameters are invalid
+     * @throws RuntimeException if an error occurs during the creation process
+     */
     @Transactional
     public void create(Warehouse warehouse) {
 
@@ -72,6 +85,7 @@ public class CreateWarehouseUseCase implements CreateWarehouseOperation {
         }
     }
 
+    /** Creates a new warehouse with the specified parameters. */
     @Override
     @Transactional
     public void create(String businessUnitCode,

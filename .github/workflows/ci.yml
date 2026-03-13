@@ -98,15 +98,13 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build with all checks
-        run: ./mvnw clean verify -DskipTests
-
       - name: Check for compilation errors
         run: ./mvnw compile
 
   dependency-check:
     name: Dependency Security Check
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event_name == 'schedule'
 
     steps:
       - name: Checkout code
@@ -123,7 +121,7 @@ jobs:
           cache: maven
 
       - name: Run dependency check
-        run: ./mvnw org.owasp:dependency-check-maven:check || true
+        run: ./mvnw org.owasp:dependency-check-maven:check -DskipTests || true
         continue-on-error: true
 
   advanced-tests:

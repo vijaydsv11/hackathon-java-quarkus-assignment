@@ -11,6 +11,26 @@ import org.jboss.logging.Logger;
 
 import java.util.List;
 
+/**
+ * Repository adapter for Warehouse persistence operations.
+ *
+ * <p>This class implements the {@link WarehouseStore} port and provides database access using
+ * Quarkus Hibernate ORM Panache. It handles all CRUD operations for Warehouse entities,
+ * managing both read and write transactions with appropriate logging.
+ *
+ * <p>Key responsibilities:
+ * <ul>
+ *   <li>Fetch warehouses (all, by business unit code)</li>
+ *   <li>Create, update, and delete warehouse records</li>
+ *   <li>Execute complex search queries with filtering and pagination</li>
+ *   <li>Map between domain and entity models</li>
+ *   <li>Ensure transaction consistency and concurrency control</li>
+ * </ul>
+ *
+ * @see WarehouseStore
+ * @see DbWarehouse
+ * @see Warehouse
+ */
 @ApplicationScoped
 public class WarehouseRepository
         implements WarehouseStore, PanacheRepository<DbWarehouse> {
@@ -22,6 +42,11 @@ public class WarehouseRepository
        READ
     ========================== */
 
+    /**
+     * Retrieves all active (non-archived) warehouses.
+     *
+     * @return a list of all warehouses in the system, or an empty list if none exist
+     */
     @Transactional(Transactional.TxType.SUPPORTS)
     @Override
     public List<Warehouse> getAll() {
@@ -34,6 +59,13 @@ public class WarehouseRepository
                 .toList();
     }
 
+    /**
+     * Finds a warehouse by its business unit code.
+     *
+     * @param buCode the business unit code to search for (must not be null)
+     * @return the warehouse matching the business unit code, or {@code null} if not found
+     * @see #existsByBusinessUnitCode(String)
+     */
     @Transactional(Transactional.TxType.SUPPORTS)
     @Override
     public Warehouse findByBusinessUnitCode(String buCode) {
@@ -51,6 +83,12 @@ public class WarehouseRepository
                 .orElse(null);
     }
 
+    /**
+     * Checks if a warehouse exists for the given business unit code.
+     *
+     * @param buCode the business unit code to check
+     * @return {@code true} if a warehouse exists, {@code false} otherwise
+     */
     @Transactional(Transactional.TxType.SUPPORTS)
     @Override
     public boolean existsByBusinessUnitCode(String buCode) {
@@ -64,6 +102,15 @@ public class WarehouseRepository
        WRITE
     ========================== */
 
+    /**
+     * Creates a new warehouse in the database.
+     *
+     * <p>This operation persists the warehouse immediately and flushes the transaction
+     * to ensure visibility to concurrent operations (important for concurrency tests).
+     *
+     * @param warehouse the warehouse to create (must not be null)
+     * @throws IllegalArgumentException if warehouse validation fails
+     */
     @Transactional
     @Override
     public void create(Warehouse warehouse) {
@@ -78,6 +125,14 @@ public class WarehouseRepository
         LOGGER.infof("Warehouse created successfully: %s", warehouse.businessUnitCode);
     }
 
+    /**
+     * Updates an existing warehouse with new values.
+     *
+     * <p>Updates the following fields: location, capacity, stock, and archived timestamp.
+     *
+     * @param warehouse the warehouse with updated values (must not be null)
+     * @throws IllegalStateException if the warehouse is not found in the database
+     */
     @Transactional
     @Override
     public void update(Warehouse warehouse) {
@@ -96,6 +151,11 @@ public class WarehouseRepository
         LOGGER.infof("Warehouse updated successfully: %s", warehouse.businessUnitCode);
     }
 
+    /**
+     * Deletes a warehouse from the database.
+     *
+     * @param warehouse the warehouse to delete (must not be null)
+     */
     @Transactional
     @Override
     public void remove(Warehouse warehouse) {
@@ -109,6 +169,12 @@ public class WarehouseRepository
        Mapping
     ========================== */
 
+    /**
+     * Converts a database entity to a domain model.
+     *
+     * @param db the database entity (must not be null)
+     * @return the corresponding domain warehouse object
+     */
     private Warehouse toDomain(DbWarehouse db) {
 
         return Warehouse.reconstruct(
@@ -121,6 +187,12 @@ public class WarehouseRepository
         );
     }
 
+    /**
+     * Converts a domain model to a database entity.
+     *
+     * @param domain the domain warehouse object (must not be null)
+     * @return the corresponding database entity
+     */
     private DbWarehouse toEntity(Warehouse domain) {
 
         DbWarehouse db = new DbWarehouse();
@@ -135,6 +207,30 @@ public class WarehouseRepository
         return db;
     }
     
+    /**
+     * Searches for warehouses based on multiple criteria with pagination and sorting.
+     *
+     * <p>Filters are optional and can be combined:
+     * <ul>
+     *   <li>Location: exact match filter</li>
+     *   <li>Capacity: range filter (min and/or max)</li>
+     *   <li>Pagination: splits results into pages</li>
+     *   <li>Sorting: orders results by specified field</li>
+     * </ul>
+     *
+     * <p>Only active (non-archived) warehouses are returned.
+     *
+     * @param location the warehouse location to filter by (optional, can be null)
+     * @param minCapacity minimum warehouse capacity (optional, can be null)
+     * @param maxCapacity maximum warehouse capacity (optional, can be null)
+     * @param page the page number (0-indexed)
+     * @param pageSize the number of results per page (capped at 100)
+     * @param sortBy the field name to sort by (e.g., "capacity", "location")
+     * @param sortOrder sorting direction: "asc" or "desc"
+     * @return a list of warehouses matching the search criteria
+     * @throws IllegalArgumentException if query parameters are invalid
+     * @throws RuntimeException if the search operation fails
+     */
     @Transactional(Transactional.TxType.SUPPORTS)
     public List<Warehouse> search(
             String location,
