@@ -120,8 +120,15 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Run dependency check
-        run: ./mvnw org.owasp:dependency-check-maven:check -DskipTests || true
+      - name: Cache NVD Database
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: dependency-check-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: dependency-check-${{ runner.os }}-
+
+      - name: Run dependency check (with NVD cache)
+        run: ./mvnw org.owasp:dependency-check-maven:check -DskipTests -Ddependency-check.downloader.fast=true || true
         continue-on-error: true
 
   advanced-tests:
