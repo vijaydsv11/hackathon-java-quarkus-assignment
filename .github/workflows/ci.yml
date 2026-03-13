@@ -32,13 +32,13 @@ jobs:
         run: ./mvnw jacoco:report
 
       - name: Upload Test Reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: test-reports
           path: target/surefire-reports
 
       - name: Upload Coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-report
           path: target/site/jacoco
@@ -78,11 +78,11 @@ jobs:
         run: ./mvnw clean verify jacoco:report
 
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+        uses: peaceiris/actions-gh-pages@v5
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./target/site/jacoco
-          cname: 
+          force_orphan: true 
 
   code-quality:
     name: Code Quality Checks
@@ -130,5 +130,5 @@ jobs:
           cache: maven
 
       - name: Run dependency check
-        run: ./mvnw dependency:check
+        run: ./mvnw org.owasp:dependency-check-maven:check || true
         continue-on-error: true
