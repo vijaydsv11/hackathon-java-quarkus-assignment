@@ -63,27 +63,18 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4
         with:
-          fetch-depth: 0
-
-      - name: Make mvnw executable
-        run: chmod +x ./mvnw
-
-      - name: Setup Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 17
-          cache: maven
-
-      - name: Generate Coverage Report
-        run: ./mvnw clean verify jacoco:report
+          name: coverage-report
+          path: coverage-report
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./target/site/jacoco
+          publish_dir: ./coverage-report
           force_orphan: true 
 
   code-quality:
@@ -133,4 +124,42 @@ jobs:
 
       - name: Run dependency check
         run: ./mvnw org.owasp:dependency-check-maven:check || true
+        continue-on-error: true
+
+  advanced-tests:
+    name: Advanced Test Suite
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Make mvnw executable
+        run: chmod +x ./mvnw
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+
+      - name: Integration & Concurrency Tests
+        run: ./mvnw test -Dtest=WarehouseConcurrencyIT,WarehouseTestcontainersIT
+        continue-on-error: true
+
+      - name: Archive Use Case Tests
+        run: ./mvnw test -Dtest=ArchiveWarehouseUseCaseTest
+        continue-on-error: true
+
+      - name: Optimistic Locking Validation
+        run: ./mvnw test -Dtest=ArchiveWarehouseUseCaseTest#testConcurrentArchiveAndStockUpdateCausesOptimisticLockException
+        continue-on-error: true
+
+      - name: Upload Advanced Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: advanced-test-reports
+          path: target/surefire-reports
         continue-on-error: true
