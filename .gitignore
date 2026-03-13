@@ -1,5 +1,9 @@
-# Maven
-/target/
+# Maven build
+target/
+*/target/
+
+# Claude AI
+.claude/
 
 # Eclipse
 .project
@@ -9,6 +13,8 @@
 # IntelliJ
 .idea/
 *.iml
+*.ipr
+*.iws
 
 # VSCode
 .vscode/
@@ -16,6 +22,12 @@
 # Logs
 *.log
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
+
+# Java compiled files
+*.class
+
+# Maven wrapper logs
+.mvn/wrapper/maven-wrapper.jar
