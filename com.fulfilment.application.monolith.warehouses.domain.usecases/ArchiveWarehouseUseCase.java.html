@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ArchiveWarehouseUseCase.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">java-code-assignment</a> &gt; <a href="index.source.html" class="el_package">com.fulfilment.application.monolith.warehouses.domain.usecases</a> &gt; <span class="el_source">ArchiveWarehouseUseCase.java</span></div><h1>ArchiveWarehouseUseCase.java</h1><pre class="source lang-java linenums">package com.fulfilment.application.monolith.warehouses.domain.usecases;
+
+import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
+import com.fulfilment.application.monolith.warehouses.domain.ports.ArchiveWarehouseOperation;
+import com.fulfilment.application.monolith.warehouses.domain.ports.WarehouseStore;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.transaction.Transactional;
+import org.jboss.logging.Logger;
+
+/**
+ * Use case for archiving warehouses.
+ * Marks a warehouse as inactive by setting the archive timestamp.
+ * 
+ * Logger: Logs info for successful archival, warns for validation failures,
+ * and logs errors for database-related issues or invalid warehouse states.
+ */
+@ApplicationScoped
+@Transactional
+public class ArchiveWarehouseUseCase implements ArchiveWarehouseOperation {
+
+<span class="fc" id="L22">    private static final Logger LOGGER =</span>
+<span class="fc" id="L23">            Logger.getLogger(ArchiveWarehouseUseCase.class);</span>
+
+    private final WarehouseStore warehouseStore;
+
+    /**
+     * Constructor injection for WarehouseStore dependency.
+     * This allows for better testability and separation of concerns.
+     */
+<span class="fc" id="L31">    public ArchiveWarehouseUseCase(WarehouseStore warehouseStore) {</span>
+<span class="fc" id="L32">        this.warehouseStore = warehouseStore;</span>
+<span class="fc" id="L33">    }</span>
+    
+    /** Archives a warehouse by its business unit code. */
+    @Override
+    public void archive(String businessUnitCode) {
+
+<span class="fc" id="L39">    	LOGGER.infof(&quot;Archiving warehouse with BU code: %s&quot;, businessUnitCode);</span>
+    	
+<span class="fc bfc" id="L41" title="All 4 branches covered.">    	if (businessUnitCode == null || businessUnitCode.isBlank()) {</span>
+<span class="fc" id="L42">    	    LOGGER.warn(&quot;Attempt to archive warehouse with null/blank business unit code&quot;);</span>
+<span class="fc" id="L43">    	    throw new IllegalArgumentException(&quot;Business unit code is required&quot;);</span>
+    	}
+
+<span class="fc" id="L46">        Warehouse existing =</span>
+<span class="fc" id="L47">                warehouseStore.findByBusinessUnitCode(businessUnitCode);</span>
+
+<span class="fc bfc" id="L49" title="All 2 branches covered.">        if (existing == null) {</span>
+<span class="fc" id="L50">            LOGGER.warnf(&quot;Warehouse not found for archival: %s&quot;, businessUnitCode);</span>
+<span class="fc" id="L51">            throw new IllegalArgumentException(</span>
+                    &quot;Warehouse with business unit code '&quot; +
+                            businessUnitCode + &quot;' does not exist&quot;);
+        }
+
+<span class="fc bfc" id="L56" title="All 2 branches covered.">        if (existing.archivedAt != null) {</span>
+<span class="fc" id="L57">            LOGGER.warnf(&quot;Warehouse already archived: %s&quot;, businessUnitCode);</span>
+<span class="fc" id="L58">            throw new IllegalArgumentException(&quot;Warehouse already archived&quot;);</span>
+        }
+
+        // Delegate business rule to aggregate
+<span class="fc" id="L62">        existing.archive();</span>
+
+        try {
+<span class="fc" id="L65">            warehouseStore.update(existing);</span>
+<span class="fc" id="L66">            LOGGER.infof(&quot;Warehouse successfully archived: %s&quot;, businessUnitCode);</span>
+<span class="nc" id="L67">        } catch (Exception e) {</span>
+<span class="nc" id="L68">            LOGGER.errorf(e, &quot;Error archiving warehouse %s: %s&quot;, businessUnitCode, e.getMessage());</span>
+<span class="nc" id="L69">            throw new RuntimeException(&quot;Failed to archive warehouse&quot;, e);</span>
+<span class="fc" id="L70">        }</span>
+<span class="fc" id="L71">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

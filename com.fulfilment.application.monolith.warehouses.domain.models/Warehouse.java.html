@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Warehouse.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">java-code-assignment</a> &gt; <a href="index.source.html" class="el_package">com.fulfilment.application.monolith.warehouses.domain.models</a> &gt; <span class="el_source">Warehouse.java</span></div><h1>Warehouse.java</h1><pre class="source lang-java linenums">package com.fulfilment.application.monolith.warehouses.domain.models;
+
+import java.time.LocalDateTime;
+
+/**
+ * Domain model representing a warehouse aggregate.
+ * 
+ * A warehouse is identified by its business unit code and manages inventory
+ * at a specific location. It tracks capacity constraints and can be archived.
+ * 
+ * This is the core aggregate for warehouse management, enforcing all business
+ * rules
+ * related to warehouse operations like archiving and stock management.
+ */
+public class Warehouse {
+
+	// Must be non-final for default constructor compatibility
+	public String businessUnitCode;
+	public String location;
+	public int capacity;
+	public int stock;
+	public Long version;
+	public LocalDateTime createdAt;
+	public LocalDateTime archivedAt;
+
+	// Required for tests
+<span class="fc" id="L27">	public Warehouse() {</span>
+<span class="fc" id="L28">	}</span>
+
+	/**
+	 * Factory method to create a new warehouse with proper validation.
+	 * 
+	 * @param code                the unique business unit code for the warehouse
+	 * @param location            the location identifier where the warehouse
+	 *                            operates
+	 * @param capacity            the total capacity of the warehouse
+	 * @param locationMaxCapacity the maximum capacity allowed at the location
+	 * @return a new Warehouse instance with initialized properties
+	 * @throws IllegalArgumentException if any parameter validation fails
+	 */
+	public static Warehouse create(String code, String location, int capacity, int locationMaxCapacity) {
+
+<span class="fc" id="L43">		validateBusinessUnitCode(code);</span>
+<span class="fc" id="L44">		validateLocation(location);</span>
+<span class="fc" id="L45">		validateCapacity(capacity, locationMaxCapacity);</span>
+
+<span class="fc" id="L47">		Warehouse warehouse = new Warehouse();</span>
+<span class="fc" id="L48">		warehouse.businessUnitCode = code;</span>
+<span class="fc" id="L49">		warehouse.location = location;</span>
+<span class="fc" id="L50">		warehouse.capacity = capacity;</span>
+<span class="fc" id="L51">		warehouse.stock = 0;</span>
+<span class="fc" id="L52">		warehouse.version = null;</span>
+<span class="fc" id="L53">		warehouse.createdAt = LocalDateTime.now();</span>
+<span class="fc" id="L54">		warehouse.archivedAt = null;</span>
+
+<span class="fc" id="L56">		return warehouse;</span>
+	}
+
+	/**
+	 * Adds stock to the warehouse if not archived.
+	 * 
+	 * @param quantity the quantity to add (must be positive)
+	 * @throws IllegalArgumentException if quantity is not positive or would exceed
+	 *                                  capacity
+	 * @throws IllegalStateException    if warehouse is archived
+	 */
+	public void addStock(int quantity) {
+<span class="fc" id="L68">		ensureNotArchived();</span>
+
+<span class="fc bfc" id="L70" title="All 2 branches covered.">		if (quantity &lt;= 0) {</span>
+<span class="fc" id="L71">			throw new IllegalArgumentException(&quot;Quantity must be greater than zero&quot;);</span>
+		}
+
+<span class="fc bfc" id="L74" title="All 2 branches covered.">		if (this.stock + quantity &gt; this.capacity) {</span>
+<span class="fc" id="L75">			throw new IllegalArgumentException(&quot;Stock cannot exceed capacity&quot;);</span>
+		}
+
+<span class="fc" id="L78">		this.stock += quantity;</span>
+<span class="fc" id="L79">	}</span>
+
+	/**
+	 * Archives the warehouse by setting the archive timestamp.
+	 * 
+	 * @throws IllegalArgumentException if warehouse is already archived
+	 */
+	public void archive() {
+<span class="fc bfc" id="L87" title="All 2 branches covered.">		if (this.archivedAt != null) {</span>
+<span class="fc" id="L88">			throw new IllegalArgumentException(&quot;Warehouse already archived&quot;);</span>
+		}
+<span class="fc" id="L90">		this.archivedAt = LocalDateTime.now();</span>
+<span class="fc" id="L91">	}</span>
+
+	/**
+	 * Validates the warehouse is not archived before allowing modifications.
+	 * 
+	 * @throws IllegalArgumentException if warehouse is archived
+	 */
+	private void ensureNotArchived() {
+<span class="fc bfc" id="L99" title="All 2 branches covered.">		if (this.archivedAt != null) {</span>
+<span class="fc" id="L100">			throw new IllegalArgumentException(&quot;Archived warehouse cannot be modified&quot;);</span>
+		}
+<span class="fc" id="L102">	}</span>
+
+	/**
+	 * Validates business unit code is not null or blank.
+	 * 
+	 * @param code the code to validate
+	 * @throws IllegalArgumentException if code is null or blank
+	 */
+	private static void validateBusinessUnitCode(String code) {
+<span class="fc bfc" id="L111" title="All 4 branches covered.">		if (code == null || code.isBlank()) {</span>
+<span class="fc" id="L112">			throw new IllegalArgumentException(&quot;Business unit code must not be blank&quot;);</span>
+		}
+<span class="fc" id="L114">	}</span>
+
+	/**
+	 * Validates location identifier is not null or blank.
+	 * 
+	 * @param location the location to validate
+	 * @throws IllegalArgumentException if location is null or blank
+	 */
+	private static void validateLocation(String location) {
+<span class="fc bfc" id="L123" title="All 4 branches covered.">		if (location == null || location.isBlank()) {</span>
+<span class="fc" id="L124">			throw new IllegalArgumentException(&quot;Location must not be blank&quot;);</span>
+		}
+<span class="fc" id="L126">	}</span>
+
+	/**
+	 * Validates capacity is positive and within location constraints.
+	 * 
+	 * @param capacity    the capacity to validate
+	 * @param maxCapacity the maximum allowed capacity for the location
+	 * @throws IllegalArgumentException if capacity is non-positive or exceeds max
+	 */
+	private static void validateCapacity(int capacity, int maxCapacity) {
+<span class="fc bfc" id="L136" title="All 2 branches covered.">		if (capacity &lt;= 0) {</span>
+<span class="fc" id="L137">			throw new IllegalArgumentException(&quot;Capacity must be positive&quot;);</span>
+		}
+
+<span class="fc bfc" id="L140" title="All 2 branches covered.">		if (capacity &gt; maxCapacity) {</span>
+<span class="fc" id="L141">			throw new IllegalArgumentException(&quot;Capacity exceeds location max capacity&quot;);</span>
+		}
+<span class="fc" id="L143">	}</span>
+
+	public static Warehouse reconstruct(String businessUnitCode, String location, int capacity,
+			int stock, LocalDateTime createdAt, LocalDateTime archivedAt) {
+<span class="fc" id="L147">		return reconstruct(businessUnitCode, location, capacity, stock, null, createdAt, archivedAt);</span>
+	}
+
+	public static Warehouse reconstruct(String businessUnitCode, String location, int capacity,
+			int stock, Long version, LocalDateTime createdAt, LocalDateTime archivedAt) {
+
+<span class="fc" id="L153">		Warehouse warehouse = new Warehouse();</span>
+<span class="fc" id="L154">		warehouse.businessUnitCode = businessUnitCode;</span>
+<span class="fc" id="L155">		warehouse.location = location;</span>
+<span class="fc" id="L156">		warehouse.capacity = capacity;</span>
+<span class="fc" id="L157">		warehouse.stock = stock;</span>
+<span class="fc" id="L158">		warehouse.version = version;</span>
+<span class="fc" id="L159">		warehouse.createdAt = createdAt;</span>
+<span class="fc" id="L160">		warehouse.archivedAt = archivedAt;</span>
+
+<span class="fc" id="L162">		return warehouse;</span>
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

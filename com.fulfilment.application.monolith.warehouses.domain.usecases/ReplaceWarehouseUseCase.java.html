@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ReplaceWarehouseUseCase.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">java-code-assignment</a> &gt; <a href="index.source.html" class="el_package">com.fulfilment.application.monolith.warehouses.domain.usecases</a> &gt; <span class="el_source">ReplaceWarehouseUseCase.java</span></div><h1>ReplaceWarehouseUseCase.java</h1><pre class="source lang-java linenums">package com.fulfilment.application.monolith.warehouses.domain.usecases;
+
+import org.jboss.logging.Logger;
+
+import com.fulfilment.application.monolith.warehouses.domain.models.Location;
+import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
+import com.fulfilment.application.monolith.warehouses.domain.ports.LocationResolver;
+import com.fulfilment.application.monolith.warehouses.domain.ports.ReplaceWarehouseOperation;
+import com.fulfilment.application.monolith.warehouses.domain.ports.WarehouseStore;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.transaction.Transactional;
+
+/**
+ * Use case for replacing/updating warehouse attributes.
+ *
+ * &lt;p&gt;
+ * This class implements the {@link ReplaceWarehouseOperation} interface and
+ * handles
+ * all business logic for updating an existing warehouse's properties. It
+ * validates:
+ * &lt;ul&gt;
+ * &lt;li&gt;Warehouse existence and active state (not archived)&lt;/li&gt;
+ * &lt;li&gt;Location validity through the location resolver&lt;/li&gt;
+ * &lt;li&gt;Capacity constraints (non-negative, within location max capacity)&lt;/li&gt;
+ * &lt;li&gt;Stock level constraints (non-negative, within warehouse capacity)&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;
+ * All operations are transactional to ensure data consistency. The use case
+ * applies
+ * optimistic locking through the warehouse store to detect concurrent
+ * modifications.
+ *
+ * &lt;p&gt;
+ * Key responsibilities:
+ * &lt;ul&gt;
+ * &lt;li&gt;Validate all input parameters before applying updates&lt;/li&gt;
+ * &lt;li&gt;Enforce business rules (capacity &gt; stock, capacity ≤ location max)&lt;/li&gt;
+ * &lt;li&gt;Persist warehouse updates through the store&lt;/li&gt;
+ * &lt;li&gt;Provide detailed logging for auditing and debugging&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * @see ReplaceWarehouseOperation
+ * @see WarehouseStore
+ * @see LocationResolver
+ * @see Warehouse
+ */
+@ApplicationScoped
+@Transactional
+public class ReplaceWarehouseUseCase implements ReplaceWarehouseOperation {
+
+<span class="fc" id="L53">    private static final Logger LOGGER = Logger.getLogger(ReplaceWarehouseUseCase.class);</span>
+
+    private final WarehouseStore warehouseStore;
+    private final LocationResolver locationResolver;
+
+    /**
+     * Constructs a ReplaceWarehouseUseCase with required dependencies.
+     *
+     * @param warehouseStore   the warehouse store for persistence operations (must
+     *                         not be null)
+     * @param locationResolver the location resolver for validating locations (must
+     *                         not be null)
+     */
+    public ReplaceWarehouseUseCase(WarehouseStore warehouseStore,
+<span class="fc" id="L67">            LocationResolver locationResolver) {</span>
+<span class="fc" id="L68">        this.warehouseStore = warehouseStore;</span>
+<span class="fc" id="L69">        this.locationResolver = locationResolver;</span>
+<span class="fc" id="L70">    }</span>
+
+    /**
+     * Replaces an entire warehouse with new values.
+     *
+     * &lt;p&gt;
+     * Convenience method that delegates to the parameterized replace method,
+     * extracting fields from the provided warehouse domain object.
+     *
+     * @param warehouse the warehouse object with updated values (must not be null)
+     * @throws IllegalArgumentException if warehouse validation fails (see
+     *                                  {@link #replace(String, String, int, int)})
+     */
+    public void replace(Warehouse warehouse) {
+<span class="fc" id="L84">        replace(</span>
+                warehouse.businessUnitCode,
+                warehouse.location,
+                warehouse.capacity,
+                warehouse.stock);
+<span class="fc" id="L89">    }</span>
+
+    /**
+     * Replaces warehouse attributes with detailed validation.
+     *
+     * &lt;p&gt;
+     * Updates the location, capacity, and stock of an existing warehouse. Performs
+     * comprehensive
+     * validation to ensure:
+     * &lt;ul&gt;
+     * &lt;li&gt;Business unit code is valid and warehouse exists&lt;/li&gt;
+     * &lt;li&gt;Warehouse is active (not archived)&lt;/li&gt;
+     * &lt;li&gt;New location is valid and supported&lt;/li&gt;
+     * &lt;li&gt;Capacity is non-negative and within location limits&lt;/li&gt;
+     * &lt;li&gt;Stock is non-negative and does not exceed capacity&lt;/li&gt;
+     * &lt;/ul&gt;
+     *
+     * &lt;p&gt;
+     * &lt;strong&gt;Optimistic Locking:&lt;/strong&gt; May throw an exception if another
+     * transaction
+     * concurrently modified the warehouse (version mismatch).
+     *
+     * @param businessUnitCode the unique identifier of the warehouse to update
+     *                         (must not be null or blank)
+     * @param newLocation      the new warehouse location identifier (must be
+     *                         resolvable by LocationResolver)
+     * @param capacity         the new warehouse capacity (must be non-negative and
+     *                         ≤ location max capacity)
+     * @param stock            the new stock level (must be non-negative and ≤
+     *                         capacity)
+     * @throws IllegalArgumentException if any of the following validation checks
+     *                                  fail:
+     *                                  &lt;ul&gt;
+     *                                  &lt;li&gt;Business unit code is null or blank&lt;/li&gt;
+     *                                  &lt;li&gt;Warehouse with the code does not
+     *                                  exist&lt;/li&gt;
+     *                                  &lt;li&gt;Warehouse is archived&lt;/li&gt;
+     *                                  &lt;li&gt;Location is invalid or not
+     *                                  resolvable&lt;/li&gt;
+     *                                  &lt;li&gt;Capacity is negative&lt;/li&gt;
+     *                                  &lt;li&gt;Stock is negative&lt;/li&gt;
+     *                                  &lt;li&gt;Capacity exceeds location maximum
+     *                                  capacity&lt;/li&gt;
+     *                                  &lt;li&gt;Stock exceeds warehouse capacity&lt;/li&gt;
+     *                                  &lt;/ul&gt;
+     * @throws RuntimeException         if database update operation fails
+     * @see #replace(Warehouse)
+     */
+    @Override
+    public void replace(String businessUnitCode,
+            String newLocation,
+            int capacity,
+            int stock) {
+
+<span class="fc" id="L143">        LOGGER.infof(&quot;Replacing warehouse: %s&quot;, businessUnitCode);</span>
+
+<span class="fc bfc" id="L145" title="All 4 branches covered.">        if (businessUnitCode == null || businessUnitCode.isBlank()) {</span>
+<span class="fc" id="L146">            throw new IllegalArgumentException(&quot;Business unit code is required&quot;);</span>
+        }
+
+<span class="fc" id="L149">        Warehouse existing = warehouseStore.findByBusinessUnitCode(businessUnitCode);</span>
+
+<span class="fc bfc" id="L151" title="All 2 branches covered.">        if (existing == null) {</span>
+<span class="fc" id="L152">            throw new IllegalArgumentException(</span>
+                    &quot;Warehouse with business unit code '&quot; +
+                            businessUnitCode + &quot;' does not exist&quot;);
+        }
+
+<span class="fc bfc" id="L157" title="All 2 branches covered.">        if (existing.archivedAt != null) {</span>
+<span class="fc" id="L158">            throw new IllegalArgumentException(&quot;Warehouse is archived&quot;);</span>
+        }
+
+<span class="fc" id="L161">        Location location = locationResolver.resolveByIdentifier(newLocation);</span>
+
+<span class="fc bfc" id="L163" title="All 2 branches covered.">        if (location == null) {</span>
+<span class="fc" id="L164">            throw new IllegalArgumentException(&quot;Location is not valid&quot;);</span>
+        }
+
+<span class="pc bpc" id="L167" title="1 of 2 branches missed.">        if (capacity &lt; 0) {</span>
+<span class="nc" id="L168">            throw new IllegalArgumentException(&quot;Capacity cannot be negative&quot;);</span>
+        }
+
+<span class="pc bpc" id="L171" title="1 of 2 branches missed.">        if (stock &lt; 0) {</span>
+<span class="nc" id="L172">            throw new IllegalArgumentException(&quot;Stock cannot be negative&quot;);</span>
+        }
+
+<span class="fc bfc" id="L175" title="All 2 branches covered.">        if (capacity &gt; location.maxCapacity()) {</span>
+<span class="fc" id="L176">            throw new IllegalArgumentException(&quot;Capacity exceeds location max capacity&quot;);</span>
+        }
+
+<span class="fc bfc" id="L179" title="All 2 branches covered.">        if (stock &gt; capacity) {</span>
+<span class="fc" id="L180">            throw new IllegalArgumentException(&quot;Stock exceeds warehouse capacity&quot;);</span>
+        }
+
+<span class="fc" id="L183">        existing.location = newLocation;</span>
+<span class="fc" id="L184">        existing.capacity = capacity;</span>
+<span class="fc" id="L185">        existing.stock = stock;</span>
+
+<span class="fc" id="L187">        warehouseStore.update(existing);</span>
+
+<span class="fc" id="L189">        LOGGER.infof(&quot;Warehouse successfully replaced: %s&quot;, businessUnitCode);</span>
+<span class="fc" id="L190">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

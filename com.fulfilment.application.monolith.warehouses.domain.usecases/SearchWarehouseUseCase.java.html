@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SearchWarehouseUseCase.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">java-code-assignment</a> &gt; <a href="index.source.html" class="el_package">com.fulfilment.application.monolith.warehouses.domain.usecases</a> &gt; <span class="el_source">SearchWarehouseUseCase.java</span></div><h1>SearchWarehouseUseCase.java</h1><pre class="source lang-java linenums">package com.fulfilment.application.monolith.warehouses.domain.usecases;
+
+import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
+import com.fulfilment.application.monolith.warehouses.domain.ports.SearchWarehouseOperation;
+import com.fulfilment.application.monolith.warehouses.domain.ports.WarehouseStore;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.jboss.logging.Logger;
+
+import java.util.List;
+
+/**
+ * Use case for searching warehouses with advanced filtering and pagination.
+ * Supports searching by location, capacity range, and custom sorting.
+ * 
+ * Logger: Logs parameter validation, search operations, and database errors.
+ */
+@ApplicationScoped
+public class SearchWarehouseUseCase implements SearchWarehouseOperation {
+
+<span class="fc" id="L22">    private static final Logger LOGGER =</span>
+<span class="fc" id="L23">            Logger.getLogger(SearchWarehouseUseCase.class);</span>
+
+    @Inject
+    WarehouseStore warehouseStore;
+    
+    @Inject
+<span class="fc" id="L29">    public SearchWarehouseUseCase(WarehouseStore warehouseStore) {</span>
+<span class="fc" id="L30">        this.warehouseStore = warehouseStore;</span>
+<span class="fc" id="L31">    }</span>
+
+    /**
+     * Searches for warehouses based on specified criteria.
+     * Validates all input parameters before executing the search.
+     * 
+     * @param location the location identifier to filter by (optional)
+     * @param minCapacity minimum warehouse capacity (optional)
+     * @param maxCapacity maximum warehouse capacity (optional)
+     * @param page the page number (0-indexed)
+     * @param pageSize the number of results per page (max 100)
+     * @param sortBy the field to sort by (e.g., &quot;createdAt&quot;, &quot;capacity&quot;)
+     * @param sortOrder the sort order (&quot;asc&quot; or &quot;desc&quot;)
+     * @return List of warehouses matching the search criteria
+     * @throws IllegalArgumentException if page or pageSize are invalid
+     * @throws RuntimeException if database search fails
+     */
+    public List&lt;Warehouse&gt; search(
+            String location,
+            Integer minCapacity,
+            Integer maxCapacity,
+            int page,
+            int pageSize,
+            String sortBy,
+            String sortOrder) {
+
+<span class="pc bpc" id="L57" title="1 of 2 branches missed.">        if (page &lt; 0) {</span>
+<span class="nc" id="L58">            LOGGER.warnf(&quot;Invalid page number: %d. Page must be &gt;= 0&quot;, page);</span>
+<span class="nc" id="L59">            throw new IllegalArgumentException(&quot;Page number must be non-negative&quot;);</span>
+        }
+        
+<span class="pc bpc" id="L62" title="2 of 4 branches missed.">        if (pageSize &lt;= 0 || pageSize &gt; 100) {</span>
+<span class="nc" id="L63">            LOGGER.warnf(&quot;Invalid page size: %d. Page size must be between 1 and 100&quot;, pageSize);</span>
+<span class="nc" id="L64">            throw new IllegalArgumentException(&quot;Page size must be between 1 and 100&quot;);</span>
+        }
+        
+<span class="pc bpc" id="L67" title="1 of 6 branches missed.">        if (minCapacity != null &amp;&amp; maxCapacity != null &amp;&amp; minCapacity &gt; maxCapacity) {</span>
+<span class="nc" id="L68">            LOGGER.warnf(&quot;Invalid capacity range: minCapacity(%d) &gt; maxCapacity(%d)&quot;, minCapacity, maxCapacity);</span>
+<span class="nc" id="L69">            throw new IllegalArgumentException(&quot;Minimum capacity cannot exceed maximum capacity&quot;);</span>
+        }
+
+<span class="fc" id="L72">        LOGGER.debugf(&quot;Searching warehouses - Location: %s, MinCap: %s, MaxCap: %s, Page: %d, PageSize: %d, SortBy: %s, SortOrder: %s&quot;,</span>
+<span class="fc" id="L73">                location, minCapacity, maxCapacity, page, pageSize, sortBy, sortOrder);</span>
+        
+        try {
+<span class="fc" id="L76">            List&lt;Warehouse&gt; results = warehouseStore.search(</span>
+                    location,
+                    minCapacity,
+                    maxCapacity,
+                    page,
+                    pageSize,
+                    sortBy,
+                    sortOrder
+            );
+<span class="fc" id="L85">            LOGGER.infof(&quot;Search completed - Found %d warehouses&quot;, results.size());</span>
+<span class="fc" id="L86">            return results;</span>
+<span class="nc" id="L87">        } catch (Exception e) {</span>
+<span class="nc" id="L88">            LOGGER.errorf(e, &quot;Error during warehouse search: %s&quot;, e.getMessage());</span>
+<span class="nc" id="L89">            throw new RuntimeException(&quot;Failed to search warehouses&quot;, e);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>
