@@ -1,6 +1,8 @@
 package com.fulfilment.application.monolith.warehouses.domain.usecases;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.LocalDateTime;
 
@@ -42,8 +44,7 @@ public class ArchiveWarehouseUseCaseExtendedTest {
     public void testArchiveThrowsWhenBusinessUnitCodeIsNull() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> archiveWarehouseUseCase.archive(null)
-        );
+                () -> archiveWarehouseUseCase.archive(null));
         assertTrue(ex.getMessage().contains("Business unit code is required"));
     }
 
@@ -52,8 +53,7 @@ public class ArchiveWarehouseUseCaseExtendedTest {
     public void testArchiveThrowsWhenBusinessUnitCodeIsBlank() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> archiveWarehouseUseCase.archive("   ")
-        );
+                () -> archiveWarehouseUseCase.archive("   "));
         assertTrue(ex.getMessage().contains("Business unit code is required"));
     }
 
@@ -62,15 +62,14 @@ public class ArchiveWarehouseUseCaseExtendedTest {
     public void testArchiveThrowsWhenBusinessUnitCodeIsEmpty() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> archiveWarehouseUseCase.archive("")
-        );
+                () -> archiveWarehouseUseCase.archive(""));
         assertTrue(ex.getMessage().contains("Business unit code is required"));
     }
 
     @Test
     @Transactional
     public void testArchiveSuccessfullyWithValidCode() {
-        Warehouse warehouse = createWarehouse("ARCHIVE-VALID-001", "AMSTERDAM-001");
+        createWarehouse("ARCHIVE-VALID-001", "AMSTERDAM-001");
 
         archiveWarehouseUseCase.archive("ARCHIVE-VALID-001");
 
@@ -82,14 +81,14 @@ public class ArchiveWarehouseUseCaseExtendedTest {
     @Test
     @Transactional
     public void testArchiveSetsPreciseDatetime() {
-        Warehouse warehouse = createWarehouse("ARCHIVE-TIME-001", "ZWOLLE-001");
-        
+        createWarehouse("ARCHIVE-TIME-001", "ZWOLLE-001");
+
         LocalDateTime beforeArchive = LocalDateTime.now();
         archiveWarehouseUseCase.archive("ARCHIVE-TIME-001");
         LocalDateTime afterArchive = LocalDateTime.now();
 
         Warehouse archived = warehouseRepository.findByBusinessUnitCode("ARCHIVE-TIME-001");
-        
+
         assertNotNull(archived.archivedAt);
         assertTrue(archived.archivedAt.isAfter(beforeArchive) || archived.archivedAt.isEqual(beforeArchive));
         assertTrue(archived.archivedAt.isBefore(afterArchive) || archived.archivedAt.isEqual(afterArchive));

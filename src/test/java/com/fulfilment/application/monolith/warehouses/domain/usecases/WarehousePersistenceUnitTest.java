@@ -1,17 +1,27 @@
 package com.fulfilment.application.monolith.warehouses.domain.usecases;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
 import com.fulfilment.application.monolith.warehouses.domain.ports.WarehouseStore;
-
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Unit tests for persistence and concurrency patterns
@@ -20,13 +30,12 @@ import java.util.List;
 public class WarehousePersistenceUnitTest {
 
     private WarehouseStore warehouseStore;
-    private CreateWarehouseUseCase createWarehouseUseCase;
     private GetWarehouseUseCase getWarehouseUseCase;
 
     @BeforeEach
     void setup() {
         warehouseStore = mock(WarehouseStore.class);
-        createWarehouseUseCase = new CreateWarehouseUseCase(warehouseStore, null);
+        // createWarehouseUseCase = new CreateWarehouseUseCase(warehouseStore, null);
         getWarehouseUseCase = new GetWarehouseUseCase();
         getWarehouseUseCase.warehouseStore = warehouseStore;
     }
@@ -38,8 +47,7 @@ public class WarehousePersistenceUnitTest {
                 capacity,
                 stock,
                 LocalDateTime.now(),
-                null
-        );
+                null);
     }
 
     // ============ Unique Constraint Tests ============
@@ -58,8 +66,7 @@ public class WarehousePersistenceUnitTest {
 
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> warehouseStore.create(wh2)
-        );
+                () -> warehouseStore.create(wh2));
         assertTrue(ex.getMessage().contains("Duplicate"));
     }
 
@@ -98,16 +105,14 @@ public class WarehousePersistenceUnitTest {
         List<Warehouse> amsterdamWarehouses = List.of(
                 createTestWarehouse("AMS-001", "AMSTERDAM-001", 100, 50),
                 createTestWarehouse("AMS-002", "AMSTERDAM-001", 80, 40),
-                createTestWarehouse("AMS-003", "AMSTERDAM-001", 120, 60)
-        );
+                createTestWarehouse("AMS-003", "AMSTERDAM-001", 120, 60));
 
         when(warehouseStore.search("AMSTERDAM-001", null, null, 0, 10, "createdAt", "asc"))
                 .thenReturn(amsterdamWarehouses);
 
         SearchWarehouseUseCase searchUseCase = new SearchWarehouseUseCase(warehouseStore);
         List<Warehouse> results = searchUseCase.search(
-                "AMSTERDAM-001", null, null, 0, 10, "createdAt", "asc"
-        );
+                "AMSTERDAM-001", null, null, 0, 10, "createdAt", "asc");
 
         assertEquals(3, results.size());
     }
@@ -117,16 +122,14 @@ public class WarehousePersistenceUnitTest {
         List<Warehouse> warehouses = List.of(
                 createTestWarehouse("RANGE-001", "AMSTERDAM-001", 50, 25),
                 createTestWarehouse("RANGE-002", "AMSTERDAM-001", 75, 37),
-                createTestWarehouse("RANGE-003", "AMSTERDAM-001", 100, 50)
-        );
+                createTestWarehouse("RANGE-003", "AMSTERDAM-001", 100, 50));
 
         when(warehouseStore.search("AMSTERDAM-001", 40, 150, 0, 10, "capacity", "asc"))
                 .thenReturn(warehouses);
 
         SearchWarehouseUseCase searchUseCase = new SearchWarehouseUseCase(warehouseStore);
         List<Warehouse> results = searchUseCase.search(
-                "AMSTERDAM-001", 40, 150, 0, 10, "capacity", "asc"
-        );
+                "AMSTERDAM-001", 40, 150, 0, 10, "capacity", "asc");
 
         assertEquals(3, results.size());
     }
@@ -136,7 +139,7 @@ public class WarehousePersistenceUnitTest {
     @Test
     void testWarehouseWithNullArchivedAtField() {
         Warehouse wh = createTestWarehouse("NULL-TEST", "AMSTERDAM-001", 100, 50);
-        
+
         assertNull(wh.archivedAt);
         assertTrue(wh.archivedAt == null);
     }
@@ -150,8 +153,7 @@ public class WarehousePersistenceUnitTest {
                 100,
                 50,
                 LocalDateTime.now(),
-                archiveTime
-        );
+                archiveTime);
 
         assertNotNull(wh.archivedAt);
         assertTrue(wh.archivedAt != null);
@@ -162,7 +164,7 @@ public class WarehousePersistenceUnitTest {
     @Test
     void testTransactionRollbackPreventsPersistence() {
         Warehouse wh1 = createTestWarehouse("ROLLBACK-001", "AMSTERDAM-001", 100, 50);
-        Warehouse wh2 = createTestWarehouse("ROLLBACK-002", "ZWOLLE-001", 50, 25);
+        createTestWarehouse("ROLLBACK-002", "ZWOLLE-001", 50, 25);
 
         // First creation succeeds
         doNothing().when(warehouseStore).create(wh1);
@@ -187,8 +189,7 @@ public class WarehousePersistenceUnitTest {
 
         RuntimeException ex = assertThrows(
                 RuntimeException.class,
-                () -> warehouseStore.create(failed)
-        );
+                () -> warehouseStore.create(failed));
         assertNotNull(ex);
     }
 
@@ -223,8 +224,7 @@ public class WarehousePersistenceUnitTest {
 
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> warehouseStore.create(wh2)
-        );
+                () -> warehouseStore.create(wh2));
         assertTrue(ex.getMessage().contains("Duplicate"));
     }
 
@@ -236,15 +236,14 @@ public class WarehousePersistenceUnitTest {
                 createTestWarehouse("AMS-001", "AMSTERDAM-001", 100, 50),
                 createTestWarehouse("ZWL-001", "ZWOLLE-001", 50, 25),
                 createTestWarehouse("TIL-001", "TILBURG-001", 75, 30),
-                createTestWarehouse("AMS-002", "AMSTERDAM-001", 80, 40)
-        );
+                createTestWarehouse("AMS-002", "AMSTERDAM-001", 80, 40));
 
         when(warehouseStore.getAll()).thenReturn(allWarehouses);
 
         List<Warehouse> results = getWarehouseUseCase.findAll();
 
         assertEquals(4, results.size());
-        
+
         // Count by location
         long amsterdamCount = results.stream()
                 .filter(w -> "AMSTERDAM-001".equals(w.location))
@@ -257,12 +256,11 @@ public class WarehousePersistenceUnitTest {
         Warehouse original = createTestWarehouse("UPDATE-TEST", "AMSTERDAM-001", 100, 50);
         Warehouse updated = Warehouse.reconstruct(
                 "UPDATE-TEST",
-                "ZWOLLE-001",  // Location changed
-                80,             // Capacity changed
+                "ZWOLLE-001", // Location changed
+                80, // Capacity changed
                 50,
                 original.createdAt,
-                null
-        );
+                null);
 
         when(warehouseStore.findByBusinessUnitCode("UPDATE-TEST"))
                 .thenReturn(original)

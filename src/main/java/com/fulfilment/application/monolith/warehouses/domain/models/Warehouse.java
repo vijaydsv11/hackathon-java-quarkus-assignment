@@ -8,7 +8,8 @@ import java.time.LocalDateTime;
  * A warehouse is identified by its business unit code and manages inventory
  * at a specific location. It tracks capacity constraints and can be archived.
  * 
- * This is the core aggregate for warehouse management, enforcing all business rules
+ * This is the core aggregate for warehouse management, enforcing all business
+ * rules
  * related to warehouse operations like archiving and stock management.
  */
 public class Warehouse {
@@ -18,6 +19,7 @@ public class Warehouse {
 	public String location;
 	public int capacity;
 	public int stock;
+	public Long version;
 	public LocalDateTime createdAt;
 	public LocalDateTime archivedAt;
 
@@ -28,9 +30,10 @@ public class Warehouse {
 	/**
 	 * Factory method to create a new warehouse with proper validation.
 	 * 
-	 * @param code the unique business unit code for the warehouse
-	 * @param location the location identifier where the warehouse operates
-	 * @param capacity the total capacity of the warehouse
+	 * @param code                the unique business unit code for the warehouse
+	 * @param location            the location identifier where the warehouse
+	 *                            operates
+	 * @param capacity            the total capacity of the warehouse
 	 * @param locationMaxCapacity the maximum capacity allowed at the location
 	 * @return a new Warehouse instance with initialized properties
 	 * @throws IllegalArgumentException if any parameter validation fails
@@ -46,19 +49,20 @@ public class Warehouse {
 		warehouse.location = location;
 		warehouse.capacity = capacity;
 		warehouse.stock = 0;
+		warehouse.version = null;
 		warehouse.createdAt = LocalDateTime.now();
 		warehouse.archivedAt = null;
 
 		return warehouse;
 	}
 
-
 	/**
 	 * Adds stock to the warehouse if not archived.
 	 * 
 	 * @param quantity the quantity to add (must be positive)
-	 * @throws IllegalArgumentException if quantity is not positive or would exceed capacity
-	 * @throws IllegalStateException if warehouse is archived
+	 * @throws IllegalArgumentException if quantity is not positive or would exceed
+	 *                                  capacity
+	 * @throws IllegalStateException    if warehouse is archived
 	 */
 	public void addStock(int quantity) {
 		ensureNotArchived();
@@ -124,7 +128,7 @@ public class Warehouse {
 	/**
 	 * Validates capacity is positive and within location constraints.
 	 * 
-	 * @param capacity the capacity to validate
+	 * @param capacity    the capacity to validate
 	 * @param maxCapacity the maximum allowed capacity for the location
 	 * @throws IllegalArgumentException if capacity is non-positive or exceeds max
 	 */
@@ -140,12 +144,18 @@ public class Warehouse {
 
 	public static Warehouse reconstruct(String businessUnitCode, String location, int capacity,
 			int stock, LocalDateTime createdAt, LocalDateTime archivedAt) {
+		return reconstruct(businessUnitCode, location, capacity, stock, null, createdAt, archivedAt);
+	}
+
+	public static Warehouse reconstruct(String businessUnitCode, String location, int capacity,
+			int stock, Long version, LocalDateTime createdAt, LocalDateTime archivedAt) {
 
 		Warehouse warehouse = new Warehouse();
 		warehouse.businessUnitCode = businessUnitCode;
 		warehouse.location = location;
 		warehouse.capacity = capacity;
 		warehouse.stock = stock;
+		warehouse.version = version;
 		warehouse.createdAt = createdAt;
 		warehouse.archivedAt = archivedAt;
 

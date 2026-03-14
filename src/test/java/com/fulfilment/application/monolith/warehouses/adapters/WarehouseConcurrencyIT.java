@@ -15,6 +15,7 @@ import org.eclipse.microprofile.context.ManagedExecutor;
 import org.junit.jupiter.api.Test;
 
 import com.fulfilment.application.monolith.warehouses.adapters.database.WarehouseRepository;
+import com.fulfilment.application.monolith.warehouses.domain.models.Location;
 import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
 import com.fulfilment.application.monolith.warehouses.domain.ports.LocationResolver;
 import com.fulfilment.application.monolith.warehouses.domain.ports.ReplaceWarehouseOperation;
@@ -30,7 +31,8 @@ import jakarta.persistence.EntityManager;
  * Sophisticated Test: Concurrency Integration Test
  * 
  * Tests race conditions and thread safety by simulating concurrent requests.
- * This test is NOT explicitly mentioned in documentation - candidates discover it!
+ * This test is NOT explicitly mentioned in documentation - candidates discover
+ * it!
  * 
  * Key Concepts:
  * - ExecutorService for concurrent execution
@@ -49,16 +51,15 @@ public class WarehouseConcurrencyIT {
 
   @Inject
   private CreateWarehouseUseCase createWarehouseUseCase;
-  
+
   @Inject
   ReplaceWarehouseOperation replaceWarehouseOperation;
-  
+
   @Inject
   ManagedExecutor executor;
-  
+
   @Inject
   EntityManager em;
-
 
   /**
    * Test concurrent creation of warehouses with unique codes.
@@ -70,9 +71,9 @@ public class WarehouseConcurrencyIT {
     int threadCount = 10;
     ExecutorService executor = Executors.newFixedThreadPool(threadCount);
     CountDownLatch latch = new CountDownLatch(threadCount);
-    
+
     List<Future<Boolean>> futures = new ArrayList<>();
-    
+
     for (int i = 0; i < threadCount; i++) {
       final int index = i;
       Future<Boolean> future = executor.submit(() -> {
@@ -82,7 +83,7 @@ public class WarehouseConcurrencyIT {
           warehouse.location = "AMSTERDAM-001";
           warehouse.capacity = 50;
           warehouse.stock = 10;
-          
+
           createWarehouseUseCase.create(warehouse);
           return true;
         } catch (Exception e) {
@@ -93,10 +94,10 @@ public class WarehouseConcurrencyIT {
       });
       futures.add(future);
     }
-    
+
     latch.await(10, TimeUnit.SECONDS);
     executor.shutdown();
-    
+
     // All should succeed since codes are unique
     long successCount = futures.stream().filter(f -> {
       try {
@@ -105,7 +106,7 @@ public class WarehouseConcurrencyIT {
         return false;
       }
     }).count();
-    
+
     assertEquals(threadCount, successCount, "All concurrent creations with unique codes should succeed");
   }
 
@@ -119,21 +120,21 @@ public class WarehouseConcurrencyIT {
     int threadCount = 5;
     ExecutorService executor = Executors.newFixedThreadPool(threadCount);
     CountDownLatch latch = new CountDownLatch(threadCount);
-    
+
     AtomicInteger successCount = new AtomicInteger(0);
     AtomicInteger failureCount = new AtomicInteger(0);
-    
+
     String duplicateCode = "DUPLICATE-CODE-" + System.currentTimeMillis();
-    
+
     for (int i = 0; i < threadCount; i++) {
       executor.submit(() -> {
         try {
           Warehouse warehouse = new Warehouse();
-          warehouse.businessUnitCode = duplicateCode;  // Same code for all!
+          warehouse.businessUnitCode = duplicateCode; // Same code for all!
           warehouse.location = "ZWOLLE-001";
           warehouse.capacity = 30;
           warehouse.stock = 5;
-          
+
           createWarehouseUseCase.create(warehouse);
           successCount.incrementAndGet();
         } catch (Exception e) {
@@ -144,10 +145,10 @@ public class WarehouseConcurrencyIT {
         }
       });
     }
-    
+
     latch.await(10, TimeUnit.SECONDS);
     executor.shutdown();
-    
+
     // Only one should succeed
     assertEquals(1, successCount.get(), "Only one warehouse with duplicate code should be created");
     assertEquals(threadCount - 1, failureCount.get(), "Other attempts should fail");
@@ -159,104 +160,116 @@ public class WarehouseConcurrencyIT {
   @Test
   public void testConcurrentReadsAreNonBlocking() throws InterruptedException {
 
-      // Create warehouse first
-      Warehouse warehouse = new Warehouse();
-      warehouse.businessUnitCode = "READ-TEST-001";
-      warehouse.location = "AMSTERDAM-001";
-      warehouse.capacity = 100;
-      warehouse.stock = 50;
+    // Create warehouse first
+    Warehouse warehouse = new Warehouse();
+    warehouse.businessUnitCode = "READ-TEST-001";
+    warehouse.location = "AMSTERDAM-001";
+    warehouse.capacity = 100;
+    warehouse.stock = 50;
 
-      createWarehouseUseCase.create(warehouse);
+    createWarehouseUseCase.create(warehouse);
 
-      int readThreadCount = 20;
+    int readThreadCount = 20;
 
-      ExecutorService executor = Executors.newFixedThreadPool(readThreadCount);
-      CountDownLatch latch = new CountDownLatch(readThreadCount);
-      AtomicInteger successfulReads = new AtomicInteger(0);
+    ExecutorService executor = Executors.newFixedThreadPool(readThreadCount);
+    CountDownLatch latch = new CountDownLatch(readThreadCount);
+    AtomicInteger successfulReads = new AtomicInteger(0);
 
-      for (int i = 0; i < readThreadCount; i++) {
+    for (int i = 0; i < readThreadCount; i++) {
 
-          executor.submit(() -> {
-              try {
+      executor.submit(() -> {
+        try {
 
-                  // Each thread runs inside its own transaction
-                  QuarkusTransaction.requiringNew().run(() -> {
+          // Each thread runs inside its own transaction
+          QuarkusTransaction.requiringNew().run(() -> {
 
-                      Warehouse found =
-                          warehouseRepository.findByBusinessUnitCode("READ-TEST-001");
+            Warehouse found = warehouseRepository.findByBusinessUnitCode("READ-TEST-001");
 
-                      if (found != null) {
-                          successfulReads.incrementAndGet();
-                      }
+            if (found != null) {
+              successfulReads.incrementAndGet();
+            }
 
-                  });
-
-              } finally {
-                  latch.countDown();
-              }
           });
-      }
 
-      latch.await(10, TimeUnit.SECONDS);
-      executor.shutdown();
+        } finally {
+          latch.countDown();
+        }
+      });
+    }
 
-      assertEquals(readThreadCount, successfulReads.get(),
-              "All concurrent reads should succeed");
+    latch.await(10, TimeUnit.SECONDS);
+    executor.shutdown();
+
+    assertEquals(readThreadCount, successfulReads.get(),
+        "All concurrent reads should succeed");
   }
-  
+
   @Test
   @ActivateRequestContext
   public void testConcurrentReplaceFailsForSecondRequest() throws InterruptedException {
 
-      Warehouse warehouse = new Warehouse();
-      warehouse.businessUnitCode = "REPLACE-CONCURRENT";
-      warehouse.location = "AMSTERDAM-001";
-      warehouse.capacity = 100;
-      warehouse.stock = 10;
+    Warehouse warehouse = new Warehouse();
+    warehouse.businessUnitCode = "REPLACE-CONCURRENT";
+    warehouse.location = "AMSTERDAM-001";
+    warehouse.capacity = 100;
+    warehouse.stock = 10;
 
-      createWarehouseUseCase.create(warehouse);
+    createWarehouseUseCase.create(warehouse);
 
-      int threadCount = 2;
+    Location location = locationResolver.resolveByIdentifier("AMSTERDAM-001");
+    if (location == null) {
+      throw new IllegalStateException("AMSTERDAM-001 location config not found");
+    }
 
-      ExecutorService executor = Executors.newFixedThreadPool(threadCount);
-      CountDownLatch latch = new CountDownLatch(threadCount);
+    int replaceCapacity = location.maxCapacity();
+    int threadCount = 2;
 
-      AtomicInteger success = new AtomicInteger(0);
-      AtomicInteger failure = new AtomicInteger(0);
+    ExecutorService executor = Executors.newFixedThreadPool(threadCount);
 
-      for (int i = 0; i < threadCount; i++) {
+    CountDownLatch startLatch = new CountDownLatch(1);
+    CountDownLatch doneLatch = new CountDownLatch(threadCount);
 
-          executor.submit(() -> {
-              try {
+    AtomicInteger success = new AtomicInteger(0);
+    AtomicInteger failure = new AtomicInteger(0);
 
-                  QuarkusTransaction.requiringNew().run(() -> {
+    for (int i = 0; i < threadCount; i++) {
 
-                      replaceWarehouseOperation.replace(
-                              "REPLACE-CONCURRENT",
-                              "AMSTERDAM-001",
-                              120,
-                              20
-                      );
+      executor.submit(() -> {
+        try {
 
-                  });
+          // Wait until both threads are ready
+          startLatch.await();
 
-                  success.incrementAndGet();
+          QuarkusTransaction.requiringNew().run(() -> {
 
-              } catch (Exception e) {
+            replaceWarehouseOperation.replace(
+                "REPLACE-CONCURRENT",
+                "AMSTERDAM-001",
+                replaceCapacity,
+                20);
 
-                  // Expected for one of the threads
-                  failure.incrementAndGet();
-
-              } finally {
-                  latch.countDown();
-              }
           });
-      }
 
-      latch.await(10, TimeUnit.SECONDS);
-      executor.shutdown();
+          success.incrementAndGet();
 
-      assertEquals(1, success.get(), "Only one replace should succeed");
-      assertEquals(1, failure.get(), "Second replace should fail due to concurrency");
+        } catch (Exception e) {
+
+          // Expected for one thread due to optimistic locking
+          failure.incrementAndGet();
+
+        } finally {
+          doneLatch.countDown();
+        }
+      });
+    }
+
+    // Release both threads simultaneously
+    startLatch.countDown();
+
+    doneLatch.await(10, TimeUnit.SECONDS);
+    executor.shutdown();
+
+    assertEquals(1, success.get(), "Only one replace should succeed");
+    assertEquals(1, failure.get(), "Second replace should fail due to concurrency");
   }
 }

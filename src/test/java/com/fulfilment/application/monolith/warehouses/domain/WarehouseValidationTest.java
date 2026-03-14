@@ -17,6 +17,7 @@ import com.fulfilment.application.monolith.warehouses.domain.usecases.CreateWare
 
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 
 /**
@@ -35,11 +36,15 @@ public class WarehouseValidationTest {
   @Inject
   LocationResolver locationResolver;
 
+  @Inject
+  EntityManager em;
+
   private CreateWarehouseUseCase createWarehouseUseCase;
 
   @BeforeEach
   @Transactional
   public void setup() {
+    em.createQuery("DELETE FROM DbWarehouse").executeUpdate();
     createWarehouseUseCase = new CreateWarehouseUseCase(warehouseRepository, locationResolver);
   }
 
@@ -72,9 +77,9 @@ public class WarehouseValidationTest {
     return Stream.of(
         // capacity, stock, location, expectedError
         Arguments.of(150, 10, "ZWOLLE-001", "exceeds location max capacity"), // capacity > location max (40)
-        Arguments.of(30, 50, "ZWOLLE-001", "exceeds warehouse capacity"),     // stock > capacity
+        Arguments.of(30, 50, "ZWOLLE-001", "exceeds warehouse capacity"), // stock > capacity
         Arguments.of(200, 10, "AMSTERDAM-001", "exceeds location max capacity"), // capacity > 100
-        Arguments.of(50, 60, "AMSTERDAM-001", "exceeds warehouse capacity")      // stock > capacity
+        Arguments.of(50, 60, "AMSTERDAM-001", "exceeds warehouse capacity") // stock > capacity
     );
   }
 
@@ -101,8 +106,7 @@ public class WarehouseValidationTest {
     return Stream.of(
         Arguments.of("INVALID-LOC", "not valid"),
         Arguments.of("NONEXISTENT-001", "not valid"),
-        Arguments.of("", "not valid")
-    );
+        Arguments.of("", "not valid"));
   }
 
   /**
@@ -118,12 +122,12 @@ public class WarehouseValidationTest {
     warehouse1.location = "ZWOLLE-001";
     warehouse1.capacity = 10;
     warehouse1.stock = 5;
-    
+
     createWarehouseUseCase.create(warehouse1);
 
     // Try to create second warehouse with same code
     Warehouse warehouse2 = new Warehouse();
-    warehouse2.businessUnitCode = code;  // Same code!
+    warehouse2.businessUnitCode = code; // Same code!
     warehouse2.location = "AMSTERDAM-001";
     warehouse2.capacity = 20;
     warehouse2.stock = 10;
@@ -139,7 +143,6 @@ public class WarehouseValidationTest {
     return Stream.of(
         Arguments.of("DUP-CODE-001"),
         Arguments.of("DUP-CODE-002"),
-        Arguments.of("DUP-CODE-003")
-    );
+        Arguments.of("DUP-CODE-003"));
   }
 }

@@ -1,30 +1,35 @@
 package com.fulfilment.application.monolith.warehouses.adapters.database;
 
+import java.util.List;
+
+import org.jboss.logging.Logger;
+
 import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
 import com.fulfilment.application.monolith.warehouses.domain.ports.WarehouseStore;
 
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.persistence.OptimisticLockException;
 import jakarta.transaction.Transactional;
-
-import org.jboss.logging.Logger;
-
-import java.util.List;
 
 /**
  * Repository adapter for Warehouse persistence operations.
  *
- * <p>This class implements the {@link WarehouseStore} port and provides database access using
- * Quarkus Hibernate ORM Panache. It handles all CRUD operations for Warehouse entities,
+ * <p>
+ * This class implements the {@link WarehouseStore} port and provides database
+ * access using
+ * Quarkus Hibernate ORM Panache. It handles all CRUD operations for Warehouse
+ * entities,
  * managing both read and write transactions with appropriate logging.
  *
- * <p>Key responsibilities:
+ * <p>
+ * Key responsibilities:
  * <ul>
- *   <li>Fetch warehouses (all, by business unit code)</li>
- *   <li>Create, update, and delete warehouse records</li>
- *   <li>Execute complex search queries with filtering and pagination</li>
- *   <li>Map between domain and entity models</li>
- *   <li>Ensure transaction consistency and concurrency control</li>
+ * <li>Fetch warehouses (all, by business unit code)</li>
+ * <li>Create, update, and delete warehouse records</li>
+ * <li>Execute complex search queries with filtering and pagination</li>
+ * <li>Map between domain and entity models</li>
+ * <li>Ensure transaction consistency and concurrency control</li>
  * </ul>
  *
  * @see WarehouseStore
@@ -35,17 +40,19 @@ import java.util.List;
 public class WarehouseRepository
         implements WarehouseStore, PanacheRepository<DbWarehouse> {
 
-    private static final Logger LOGGER =
-            Logger.getLogger(WarehouseRepository.class);
+    private static final Logger LOGGER = Logger.getLogger(WarehouseRepository.class);
 
-    /* ==========================
-       READ
-    ========================== */
+    /*
+     * ==========================
+     * READ
+     * ==========================
+     */
 
     /**
      * Retrieves all active (non-archived) warehouses.
      *
-     * @return a list of all warehouses in the system, or an empty list if none exist
+     * @return a list of all warehouses in the system, or an empty list if none
+     *         exist
      */
     @Transactional(Transactional.TxType.SUPPORTS)
     @Override
@@ -63,7 +70,8 @@ public class WarehouseRepository
      * Finds a warehouse by its business unit code.
      *
      * @param buCode the business unit code to search for (must not be null)
-     * @return the warehouse matching the business unit code, or {@code null} if not found
+     * @return the warehouse matching the business unit code, or {@code null} if not
+     *         found
      * @see #existsByBusinessUnitCode(String)
      */
     @Transactional(Transactional.TxType.SUPPORTS)
@@ -98,15 +106,19 @@ public class WarehouseRepository
         return count("businessUnitCode = ?1", buCode) > 0;
     }
 
-    /* ==========================
-       WRITE
-    ========================== */
+    /*
+     * ==========================
+     * WRITE
+     * ==========================
+     */
 
     /**
      * Creates a new warehouse in the database.
      *
-     * <p>This operation persists the warehouse immediately and flushes the transaction
-     * to ensure visibility to concurrent operations (important for concurrency tests).
+     * <p>
+     * This operation persists the warehouse immediately and flushes the transaction
+     * to ensure visibility to concurrent operations (important for concurrency
+     * tests).
      *
      * @param warehouse the warehouse to create (must not be null)
      * @throws IllegalArgumentException if warehouse validation fails
@@ -121,6 +133,7 @@ public class WarehouseRepository
 
         // Important for concurrency tests
         persistAndFlush(entity);
+        warehouse.version = entity.version;
 
         LOGGER.infof("Warehouse created successfully: %s", warehouse.businessUnitCode);
     }
@@ -128,7 +141,9 @@ public class WarehouseRepository
     /**
      * Updates an existing warehouse with new values.
      *
-     * <p>Updates the following fields: location, capacity, stock, and archived timestamp.
+     * <p>
+     * Updates the following fields: location, capacity, stock, and archived
+     * timestamp.
      *
      * @param warehouse the warehouse with updated values (must not be null)
      * @throws IllegalStateException if the warehouse is not found in the database
@@ -137,18 +152,31 @@ public class WarehouseRepository
     @Override
     public void update(Warehouse warehouse) {
 
-        LOGGER.infof("Updating warehouse: %s", warehouse.businessUnitCode);
+        LOGGER.debugf(
+                "Warehouse update request - businessUnitCode: %s, version: %s, location: %s, capacity: %s",
+                warehouse.businessUnitCode,
+                warehouse.version,
+                warehouse.location,
+                warehouse.capacity);
 
-        DbWarehouse db = find("businessUnitCode = ?1", warehouse.businessUnitCode)
+        DbWarehouse db = find("businessUnitCode = ?1 and version = ?2",
+                warehouse.businessUnitCode,
+                warehouse.version)
                 .firstResultOptional()
-                .orElseThrow(() -> new IllegalStateException("Warehouse not found"));
+                .orElseThrow(() -> new OptimisticLockException(
+                        "Warehouse version mismatch for " +
+                                warehouse.businessUnitCode + " with version " + warehouse.version));
 
         db.location = warehouse.location;
         db.capacity = warehouse.capacity;
         db.stock = warehouse.stock;
         db.archivedAt = warehouse.archivedAt;
 
-        LOGGER.infof("Warehouse updated successfully: %s", warehouse.businessUnitCode);
+        flush();
+
+        LOGGER.infof("Warehouse updated successfully: %s, new version: %s",
+                db.businessUnitCode,
+                db.version);
     }
 
     /**
@@ -165,9 +193,11 @@ public class WarehouseRepository
         delete("businessUnitCode = ?1", warehouse.businessUnitCode);
     }
 
-    /* ==========================
-       Mapping
-    ========================== */
+    /*
+     * ==========================
+     * Mapping
+     * ==========================
+     */
 
     /**
      * Converts a database entity to a domain model.
@@ -182,9 +212,9 @@ public class WarehouseRepository
                 db.location,
                 db.capacity,
                 db.stock,
+                db.version,
                 db.createdAt,
-                db.archivedAt
-        );
+                db.archivedAt);
     }
 
     /**
@@ -201,35 +231,40 @@ public class WarehouseRepository
         db.location = domain.location;
         db.capacity = domain.capacity;
         db.stock = domain.stock;
+        db.version = domain.version;
         db.createdAt = domain.createdAt;
         db.archivedAt = domain.archivedAt;
 
         return db;
     }
-    
+
     /**
-     * Searches for warehouses based on multiple criteria with pagination and sorting.
+     * Searches for warehouses based on multiple criteria with pagination and
+     * sorting.
      *
-     * <p>Filters are optional and can be combined:
+     * <p>
+     * Filters are optional and can be combined:
      * <ul>
-     *   <li>Location: exact match filter</li>
-     *   <li>Capacity: range filter (min and/or max)</li>
-     *   <li>Pagination: splits results into pages</li>
-     *   <li>Sorting: orders results by specified field</li>
+     * <li>Location: exact match filter</li>
+     * <li>Capacity: range filter (min and/or max)</li>
+     * <li>Pagination: splits results into pages</li>
+     * <li>Sorting: orders results by specified field</li>
      * </ul>
      *
-     * <p>Only active (non-archived) warehouses are returned.
+     * <p>
+     * Only active (non-archived) warehouses are returned.
      *
-     * @param location the warehouse location to filter by (optional, can be null)
+     * @param location    the warehouse location to filter by (optional, can be
+     *                    null)
      * @param minCapacity minimum warehouse capacity (optional, can be null)
      * @param maxCapacity maximum warehouse capacity (optional, can be null)
-     * @param page the page number (0-indexed)
-     * @param pageSize the number of results per page (capped at 100)
-     * @param sortBy the field name to sort by (e.g., "capacity", "location")
-     * @param sortOrder sorting direction: "asc" or "desc"
+     * @param page        the page number (0-indexed)
+     * @param pageSize    the number of results per page (capped at 100)
+     * @param sortBy      the field name to sort by (e.g., "capacity", "location")
+     * @param sortOrder   sorting direction: "asc" or "desc"
      * @return a list of warehouses matching the search criteria
      * @throws IllegalArgumentException if query parameters are invalid
-     * @throws RuntimeException if the search operation fails
+     * @throws RuntimeException         if the search operation fails
      */
     @Transactional(Transactional.TxType.SUPPORTS)
     public List<Warehouse> search(
@@ -263,10 +298,9 @@ public class WarehouseRepository
                 params.put("maxCapacity", maxCapacity);
             }
 
-            io.quarkus.panache.common.Sort sort =
-                    "desc".equalsIgnoreCase(sortOrder)
-                            ? io.quarkus.panache.common.Sort.by(sortBy).descending()
-                            : io.quarkus.panache.common.Sort.by(sortBy);
+            io.quarkus.panache.common.Sort sort = "desc".equalsIgnoreCase(sortOrder)
+                    ? io.quarkus.panache.common.Sort.by(sortBy).descending()
+                    : io.quarkus.panache.common.Sort.by(sortBy);
 
             List<Warehouse> results = find(query.toString(), sort, params)
                     .page(page, Math.min(pageSize, 100))

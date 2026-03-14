@@ -1,6 +1,8 @@
 package com.fulfilment.application.monolith.warehouses.domain.usecases;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.LocalDateTime;
 
@@ -48,8 +50,7 @@ public class ReplaceWarehouseUseCaseExtendedTest {
     public void testReplaceThrowsWhenBusinessUnitCodeIsNull() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> replaceWarehouseUseCase.replace(null, "AMSTERDAM-001", 50, 25)
-        );
+                () -> replaceWarehouseUseCase.replace(null, "AMSTERDAM-001", 50, 25));
         assertTrue(ex.getMessage().contains("Business unit code is required"));
     }
 
@@ -58,8 +59,7 @@ public class ReplaceWarehouseUseCaseExtendedTest {
     public void testReplaceThrowsWhenBusinessUnitCodeIsBlank() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> replaceWarehouseUseCase.replace("   ", "AMSTERDAM-001", 50, 25)
-        );
+                () -> replaceWarehouseUseCase.replace("   ", "AMSTERDAM-001", 50, 25));
         assertTrue(ex.getMessage().contains("Business unit code is required"));
     }
 
@@ -68,8 +68,7 @@ public class ReplaceWarehouseUseCaseExtendedTest {
     public void testReplaceThrowsWhenBusinessUnitCodeIsEmpty() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> replaceWarehouseUseCase.replace("", "AMSTERDAM-001", 50, 25)
-        );
+                () -> replaceWarehouseUseCase.replace("", "AMSTERDAM-001", 50, 25));
         assertTrue(ex.getMessage().contains("Business unit code is required"));
     }
 
@@ -80,8 +79,7 @@ public class ReplaceWarehouseUseCaseExtendedTest {
     public void testReplaceThrowsWhenWarehouseDoesNotExist() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> replaceWarehouseUseCase.replace("NON-EXISTENT", "AMSTERDAM-001", 50, 25)
-        );
+                () -> replaceWarehouseUseCase.replace("NON-EXISTENT", "AMSTERDAM-001", 50, 25));
         assertTrue(ex.getMessage().contains("does not exist"));
     }
 
@@ -90,12 +88,11 @@ public class ReplaceWarehouseUseCaseExtendedTest {
     @Test
     @Transactional
     public void testReplaceThrowsWhenWarehouseIsArchived() {
-        Warehouse archived = createArchivedWarehouse("REPLACE-ARCHIVED-001", "AMSTERDAM-001");
+        createArchivedWarehouse("REPLACE-ARCHIVED-001", "AMSTERDAM-001");
 
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> replaceWarehouseUseCase.replace("REPLACE-ARCHIVED-001", "ZWOLLE-001", 30, 15)
-        );
+                () -> replaceWarehouseUseCase.replace("REPLACE-ARCHIVED-001", "ZWOLLE-001", 30, 15));
         assertTrue(ex.getMessage().contains("archived"));
     }
 
@@ -108,8 +105,7 @@ public class ReplaceWarehouseUseCaseExtendedTest {
 
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> replaceWarehouseUseCase.replace("REPLACE-CAP-NEG-001", "AMSTERDAM-001", -10, 0)
-        );
+                () -> replaceWarehouseUseCase.replace("REPLACE-CAP-NEG-001", "AMSTERDAM-001", -10, 0));
         assertTrue(ex.getMessage().contains("Capacity cannot be negative"));
     }
 
@@ -121,8 +117,7 @@ public class ReplaceWarehouseUseCaseExtendedTest {
         // ZWOLLE-001 has max capacity of 40
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> replaceWarehouseUseCase.replace("REPLACE-CAP-EXC-001", "ZWOLLE-001", 50, 10)
-        );
+                () -> replaceWarehouseUseCase.replace("REPLACE-CAP-EXC-001", "ZWOLLE-001", 50, 10));
         assertTrue(ex.getMessage().contains("exceeds location max capacity"));
     }
 
@@ -135,8 +130,7 @@ public class ReplaceWarehouseUseCaseExtendedTest {
 
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> replaceWarehouseUseCase.replace("REPLACE-STOCK-NEG-001", "AMSTERDAM-001", 50, -5)
-        );
+                () -> replaceWarehouseUseCase.replace("REPLACE-STOCK-NEG-001", "AMSTERDAM-001", 50, -5));
         assertTrue(ex.getMessage().contains("Stock cannot be negative"));
     }
 
@@ -147,8 +141,7 @@ public class ReplaceWarehouseUseCaseExtendedTest {
 
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> replaceWarehouseUseCase.replace("REPLACE-STOCK-EXC-001", "AMSTERDAM-001", 40, 50)
-        );
+                () -> replaceWarehouseUseCase.replace("REPLACE-STOCK-EXC-001", "AMSTERDAM-001", 40, 50));
         assertTrue(ex.getMessage().contains("Stock exceeds warehouse capacity"));
     }
 
@@ -161,8 +154,7 @@ public class ReplaceWarehouseUseCaseExtendedTest {
 
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> replaceWarehouseUseCase.replace("REPLACE-LOC-INVALID-001", "INVALID-LOCATION", 50, 25)
-        );
+                () -> replaceWarehouseUseCase.replace("REPLACE-LOC-INVALID-001", "INVALID-LOCATION", 50, 25));
         assertTrue(ex.getMessage().contains("Location is not valid"));
     }
 

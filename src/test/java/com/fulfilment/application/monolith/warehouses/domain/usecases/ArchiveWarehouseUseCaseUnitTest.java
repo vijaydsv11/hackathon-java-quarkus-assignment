@@ -1,13 +1,16 @@
 package com.fulfilment.application.monolith.warehouses.domain.usecases;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
-import com.fulfilment.application.monolith.warehouses.domain.ports.ArchiveWarehouseOperation;
 import com.fulfilment.application.monolith.warehouses.domain.ports.WarehouseStore;
 
 /**
@@ -47,8 +50,7 @@ public class ArchiveWarehouseUseCaseUnitTest {
     void testArchiveThrowsWhenBusinessUnitCodeIsNull() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> archiveWarehouseUseCase.archive(null)
-        );
+                () -> archiveWarehouseUseCase.archive(null));
         assertTrue(ex.getMessage().contains("Business unit code is required"));
     }
 
@@ -56,8 +58,7 @@ public class ArchiveWarehouseUseCaseUnitTest {
     void testArchiveThrowsWhenBusinessUnitCodeIsBlank() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> archiveWarehouseUseCase.archive("   ")
-        );
+                () -> archiveWarehouseUseCase.archive("   "));
         assertTrue(ex.getMessage().contains("Business unit code is required"));
     }
 
@@ -65,8 +66,7 @@ public class ArchiveWarehouseUseCaseUnitTest {
     void testArchiveThrowsWhenBusinessUnitCodeIsEmpty() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> archiveWarehouseUseCase.archive("")
-        );
+                () -> archiveWarehouseUseCase.archive(""));
         assertTrue(ex.getMessage().contains("Business unit code is required"));
     }
 
@@ -77,8 +77,7 @@ public class ArchiveWarehouseUseCaseUnitTest {
 
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> archiveWarehouseUseCase.archive("NON-EXISTENT")
-        );
+                () -> archiveWarehouseUseCase.archive("NON-EXISTENT"));
         assertTrue(ex.getMessage().contains("does not exist"));
     }
 
@@ -93,8 +92,7 @@ public class ArchiveWarehouseUseCaseUnitTest {
 
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> archiveWarehouseUseCase.archive("ALREADY-ARCHIVED")
-        );
+                () -> archiveWarehouseUseCase.archive("ALREADY-ARCHIVED"));
         assertTrue(ex.getMessage().contains("already archived"));
     }
 }
