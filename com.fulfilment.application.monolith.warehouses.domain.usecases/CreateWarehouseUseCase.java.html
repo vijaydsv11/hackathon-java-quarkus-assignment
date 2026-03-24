@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CreateWarehouseUseCase.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">java-code-assignment</a> &gt; <a href="index.source.html" class="el_package">com.fulfilment.application.monolith.warehouses.domain.usecases</a> &gt; <span class="el_source">CreateWarehouseUseCase.java</span></div><h1>CreateWarehouseUseCase.java</h1><pre class="source lang-java linenums">package com.fulfilment.application.monolith.warehouses.domain.usecases;
+
+import org.jboss.logging.Logger;
+
+import com.fulfilment.application.monolith.warehouses.domain.models.Location;
+import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
+import com.fulfilment.application.monolith.warehouses.domain.ports.CreateWarehouseOperation;
+import com.fulfilment.application.monolith.warehouses.domain.ports.LocationResolver;
+import com.fulfilment.application.monolith.warehouses.domain.ports.WarehouseStore;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.transaction.Transactional;
+
+/**
+ * Use case for creating new warehouses.
+ * Handles validation of warehouse parameters and delegates to storage.
+ *
+ * Logger: Logs info for successful creation, warns for validation failures,
+ * and logs errors for database-related issues.
+ */
+@ApplicationScoped
+public class CreateWarehouseUseCase implements CreateWarehouseOperation {
+
+<span class="fc" id="L24">    private static final Logger LOGGER = Logger.getLogger(CreateWarehouseUseCase.class);</span>
+<span class="fc" id="L25">    private final Object createLock = new Object();</span>
+
+    private final WarehouseStore warehouseStore;
+    private final LocationResolver locationResolver;
+
+    /**
+     * Constructor injection for dependencies.
+     * This allows for better testability and separation of concerns.
+     */
+    public CreateWarehouseUseCase(WarehouseStore warehouseStore,
+<span class="fc" id="L35">            LocationResolver locationResolver) {</span>
+<span class="fc" id="L36">        this.warehouseStore = warehouseStore;</span>
+<span class="fc" id="L37">        this.locationResolver = locationResolver;</span>
+<span class="fc" id="L38">    }</span>
+
+    /**
+     * Creates a new warehouse.
+     * Validates input, checks location and capacity constraints,
+     * and delegates the creation operation to the warehouse store.
+     *
+     * @param warehouse the warehouse to create
+     * @throws IllegalArgumentException if the warehouse parameters are invalid
+     * @throws RuntimeException         if an error occurs during the creation
+     *                                  process
+     */
+    @Transactional
+    public void create(Warehouse warehouse) {
+
+        // Validate location
+<span class="fc" id="L54">        Location location = locationResolver.resolveByIdentifier(warehouse.location);</span>
+
+<span class="fc bfc" id="L56" title="All 2 branches covered.">        if (location == null) {</span>
+<span class="fc" id="L57">            throw new IllegalArgumentException(</span>
+                    &quot;Location '&quot; + warehouse.location + &quot;' is not valid&quot;);
+        }
+
+        // Capacity validation
+<span class="pc bpc" id="L62" title="1 of 2 branches missed.">        if (warehouse.capacity &lt;= 0) {</span>
+<span class="nc" id="L63">            throw new IllegalArgumentException(&quot;Capacity must be positive&quot;);</span>
+        }
+
+<span class="fc bfc" id="L66" title="All 2 branches covered.">        if (warehouse.capacity &gt; location.maxCapacity()) {</span>
+<span class="fc" id="L67">            throw new IllegalArgumentException(</span>
+                    &quot;Warehouse capacity exceeds location max capacity&quot;);
+        }
+
+<span class="fc bfc" id="L71" title="All 2 branches covered.">        if (warehouse.stock &gt; warehouse.capacity) {</span>
+<span class="fc" id="L72">            throw new IllegalArgumentException(</span>
+                    &quot;Warehouse stock exceeds warehouse capacity&quot;);
+        }
+
+<span class="fc" id="L76">        synchronized (createLock) {</span>
+<span class="fc" id="L77">            ensureLocationWarehouseLimitNotExceeded(</span>
+                    warehouse.location,
+<span class="fc" id="L79">                    location.maxNumberOfWarehouses());</span>
+
+<span class="fc" id="L81">            warehouse.createdAt = java.time.LocalDateTime.now();</span>
+
+            try {
+<span class="fc" id="L84">                warehouseStore.create(warehouse);</span>
+<span class="nc" id="L85">            } catch (Exception e) {</span>
+
+                // DB uniqueness protection for concurrent inserts
+<span class="nc" id="L88">                throw new IllegalArgumentException(</span>
+                        &quot;Warehouse with business unit code '&quot; +
+                                warehouse.businessUnitCode + &quot;' already exists&quot;,
+                        e);
+<span class="fc" id="L92">            }</span>
+<span class="fc" id="L93">        }</span>
+<span class="fc" id="L94">    }</span>
+
+    /** Creates a new warehouse with the specified parameters. */
+    @Override
+    @Transactional
+    public void create(String businessUnitCode,
+            String locationIdentifier,
+            int capacity) {
+
+<span class="fc" id="L103">        LOGGER.infof(&quot;Creating warehouse with BU code: %s at location: %s&quot;,</span>
+                businessUnitCode, locationIdentifier);
+
+<span class="fc bfc" id="L106" title="All 4 branches covered.">        if (businessUnitCode == null || businessUnitCode.isBlank()) {</span>
+<span class="fc" id="L107">            LOGGER.warn(&quot;Attempt to create warehouse with null/blank business unit code&quot;);</span>
+<span class="fc" id="L108">            throw new IllegalArgumentException(&quot;Business unit code cannot be null or blank&quot;);</span>
+        }
+
+<span class="fc bfc" id="L111" title="All 4 branches covered.">        if (locationIdentifier == null || locationIdentifier.isBlank()) {</span>
+<span class="fc" id="L112">            LOGGER.warnf(&quot;Attempt to create warehouse with null/blank location: %s&quot;, businessUnitCode);</span>
+<span class="fc" id="L113">            throw new IllegalArgumentException(&quot;Location identifier cannot be null or blank&quot;);</span>
+        }
+
+<span class="fc" id="L116">        Location location = locationResolver.resolveByIdentifier(locationIdentifier);</span>
+
+<span class="fc bfc" id="L118" title="All 2 branches covered.">        if (location == null) {</span>
+<span class="fc" id="L119">            LOGGER.warnf(&quot;Location '%s' is not valid for warehouse %s&quot;, locationIdentifier, businessUnitCode);</span>
+<span class="fc" id="L120">            throw new IllegalArgumentException(</span>
+                    &quot;Location '&quot; + locationIdentifier + &quot;' is not valid&quot;);
+        }
+
+<span class="fc" id="L124">        Warehouse warehouse = Warehouse.create(</span>
+                businessUnitCode,
+                locationIdentifier,
+                capacity,
+<span class="fc" id="L128">                location.maxCapacity());</span>
+
+<span class="fc" id="L130">        synchronized (createLock) {</span>
+<span class="fc" id="L131">            ensureLocationWarehouseLimitNotExceeded(</span>
+                    locationIdentifier,
+<span class="fc" id="L133">                    location.maxNumberOfWarehouses());</span>
+
+            try {
+<span class="fc" id="L136">                warehouseStore.create(warehouse);</span>
+<span class="fc" id="L137">                LOGGER.infof(&quot;Warehouse successfully created: %s&quot;, businessUnitCode);</span>
+<span class="fc" id="L138">            } catch (Exception e) {</span>
+<span class="fc" id="L139">                LOGGER.errorf(e, &quot;Error creating warehouse %s: %s&quot;, businessUnitCode, e.getMessage());</span>
+<span class="fc" id="L140">                throw new IllegalArgumentException(</span>
+                        &quot;Warehouse with business unit code '&quot; +
+                                businessUnitCode + &quot;' already exists&quot;,
+                        e);
+<span class="fc" id="L144">            }</span>
+<span class="fc" id="L145">        }</span>
+<span class="fc" id="L146">    }</span>
+
+    private void ensureLocationWarehouseLimitNotExceeded(String locationIdentifier,
+            int maxNumberOfWarehouses) {
+<span class="fc" id="L150">        long activeWarehousesAtLocation = warehouseStore.getAll().stream()</span>
+<span class="pc" id="L151">                .filter(w -&gt; locationIdentifier.equals(w.location))</span>
+<span class="pc bnc" id="L152" title="All 2 branches missed.">                .filter(w -&gt; w.archivedAt == null)</span>
+<span class="fc" id="L153">                .count();</span>
+
+<span class="pc bpc" id="L155" title="1 of 2 branches missed.">        if (activeWarehousesAtLocation &gt;= maxNumberOfWarehouses) {</span>
+<span class="nc" id="L156">            throw new IllegalArgumentException(</span>
+                    &quot;Location '&quot; + locationIdentifier + &quot;' reached max number of warehouses (&quot; +
+                            maxNumberOfWarehouses + &quot;)&quot;);
+        }
+<span class="fc" id="L160">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

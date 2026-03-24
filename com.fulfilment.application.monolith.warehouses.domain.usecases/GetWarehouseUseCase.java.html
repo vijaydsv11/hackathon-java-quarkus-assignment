@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GetWarehouseUseCase.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">java-code-assignment</a> &gt; <a href="index.source.html" class="el_package">com.fulfilment.application.monolith.warehouses.domain.usecases</a> &gt; <span class="el_source">GetWarehouseUseCase.java</span></div><h1>GetWarehouseUseCase.java</h1><pre class="source lang-java linenums">package com.fulfilment.application.monolith.warehouses.domain.usecases;
+
+import java.util.List;
+
+import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
+import com.fulfilment.application.monolith.warehouses.domain.ports.WarehouseStore;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
+import org.jboss.logging.Logger;
+
+/**
+ * Use case for retrieving warehouse information.
+ * Provides methods to fetch all warehouses and retrieve warehouses by their business unit code.
+ * 
+ * Logger: Logs debug info when fetching warehouses, and errors when database access fails.
+ */
+@ApplicationScoped
+<span class="fc" id="L20">public class GetWarehouseUseCase {</span>
+
+<span class="fc" id="L22">    private static final Logger LOGGER =</span>
+<span class="fc" id="L23">            Logger.getLogger(GetWarehouseUseCase.class);</span>
+
+    @Inject
+    WarehouseStore warehouseStore;   // depends on PORT, not adapter
+
+    /**
+     * Retrieves all non-archived warehouses from the system.
+     * 
+     * @return List of all available warehouses
+     * @throws RuntimeException if database access fails
+     */
+    public List&lt;Warehouse&gt; findAll() {
+<span class="fc" id="L35">        LOGGER.debug(&quot;Fetching all warehouses&quot;);</span>
+        try {
+<span class="fc" id="L37">            List&lt;Warehouse&gt; warehouses = warehouseStore.getAll();</span>
+<span class="fc" id="L38">            LOGGER.infof(&quot;Retrieved %d warehouses&quot;, warehouses.size());</span>
+<span class="fc" id="L39">            return warehouses;</span>
+<span class="nc" id="L40">        } catch (Exception e) {</span>
+<span class="nc" id="L41">            LOGGER.errorf(e, &quot;Error fetching all warehouses: %s&quot;, e.getMessage());</span>
+<span class="nc" id="L42">            throw new RuntimeException(&quot;Failed to fetch warehouses&quot;, e);</span>
+        }
+    }
+
+    /**
+     * Retrieves a warehouse by its unique business unit code.
+     * 
+     * @param code the business unit code to search for
+     * @return the Warehouse if found, null otherwise
+     * @throws IllegalArgumentException if code is null or blank
+     * @throws RuntimeException if database access fails
+     */
+    @Transactional
+    public Warehouse findByBusinessUnitCode(String code) {
+<span class="pc bpc" id="L56" title="2 of 4 branches missed.">        if (code == null || code.isBlank()) {</span>
+<span class="nc" id="L57">            LOGGER.warn(&quot;Attempted to find warehouse with null or blank business unit code&quot;);</span>
+<span class="nc" id="L58">            throw new IllegalArgumentException(&quot;Business unit code cannot be null or blank&quot;);</span>
+        }
+        
+<span class="fc" id="L61">        LOGGER.debugf(&quot;Finding warehouse with business unit code: %s&quot;, code);</span>
+        try {
+<span class="fc" id="L63">            Warehouse warehouse = warehouseStore.findByBusinessUnitCode(code);</span>
+<span class="fc bfc" id="L64" title="All 2 branches covered.">            if (warehouse == null) {</span>
+<span class="fc" id="L65">                LOGGER.debugf(&quot;Warehouse not found with business unit code: %s&quot;, code);</span>
+            } else {
+<span class="fc" id="L67">                LOGGER.infof(&quot;Warehouse found with business unit code: %s&quot;, code);</span>
+            }
+<span class="fc" id="L69">            return warehouse;</span>
+<span class="nc" id="L70">        } catch (Exception e) {</span>
+<span class="nc" id="L71">            LOGGER.errorf(e, &quot;Error finding warehouse with code %s: %s&quot;, code, e.getMessage());</span>
+<span class="nc" id="L72">            throw new RuntimeException(&quot;Failed to find warehouse by business unit code&quot;, e);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

@@ -1,0 +1,352 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WarehouseResourceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">java-code-assignment</a> &gt; <a href="index.source.html" class="el_package">com.fulfilment.application.monolith.warehouses.adapters.restapi</a> &gt; <span class="el_source">WarehouseResourceImpl.java</span></div><h1>WarehouseResourceImpl.java</h1><pre class="source lang-java linenums">package com.fulfilment.application.monolith.warehouses.adapters.restapi;
+
+import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
+import com.fulfilment.application.monolith.warehouses.domain.ports.ArchiveWarehouseOperation;
+import com.fulfilment.application.monolith.warehouses.domain.ports.CreateWarehouseOperation;
+import com.fulfilment.application.monolith.warehouses.domain.ports.ReplaceWarehouseOperation;
+import com.fulfilment.application.monolith.warehouses.domain.usecases.GetWarehouseUseCase;
+import com.fulfilment.application.monolith.warehouses.domain.usecases.SearchWarehouseUseCase;
+import com.warehouse.api.WarehouseResource;
+
+import jakarta.enterprise.context.RequestScoped;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
+import jakarta.validation.constraints.NotNull;
+
+import org.jboss.logging.Logger;
+
+import java.math.BigInteger;
+import java.util.List;
+
+/**
+ * REST API adapter for warehouse operations.
+ *
+ * &lt;p&gt;This class implements the {@link WarehouseResource} interface and serves as the HTTP endpoint
+ * handler for all warehouse-related REST operations. It acts as a bridge between the REST API layer
+ * and the domain use cases, handling request/response conversion, error handling, and logging.
+ *
+ * &lt;p&gt;Supported operations:
+ * &lt;ul&gt;
+ *   &lt;li&gt;&lt;strong&gt;Search:&lt;/strong&gt; Query warehouses with filters (location, capacity range) and pagination&lt;/li&gt;
+ *   &lt;li&gt;&lt;strong&gt;List:&lt;/strong&gt; Retrieve all active warehouses&lt;/li&gt;
+ *   &lt;li&gt;&lt;strong&gt;Create:&lt;/strong&gt; Create a new warehouse unit&lt;/li&gt;
+ *   &lt;li&gt;&lt;strong&gt;Retrieve:&lt;/strong&gt; Get a specific warehouse by business unit code&lt;/li&gt;
+ *   &lt;li&gt;&lt;strong&gt;Archive:&lt;/strong&gt; Soft-delete a warehouse (mark as archived)&lt;/li&gt;
+ *   &lt;li&gt;&lt;strong&gt;Replace:&lt;/strong&gt; Update an existing warehouse's data&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;The class uses dependency injection to access use cases and operations. All methods are
+ * request-scoped to ensure thread safety and clean resource management.
+ *
+ * @see WarehouseResource
+ * @see GetWarehouseUseCase
+ * @see SearchWarehouseUseCase
+ * @see CreateWarehouseOperation
+ * @see ReplaceWarehouseOperation
+ * @see ArchiveWarehouseOperation
+ */
+@RequestScoped
+<span class="fc" id="L50">public class WarehouseResourceImpl implements WarehouseResource {</span>
+
+<span class="fc" id="L52">    private static final Logger LOGGER =</span>
+<span class="fc" id="L53">            Logger.getLogger(WarehouseResourceImpl.class);</span>
+
+    @Inject
+    CreateWarehouseOperation createWarehouseOperation;
+
+    @Inject
+    ReplaceWarehouseOperation replaceWarehouseOperation;
+
+    @Inject
+    ArchiveWarehouseOperation archiveWarehouseOperation;
+
+    @Inject
+    GetWarehouseUseCase getWarehouseUseCase;
+    
+    @Inject
+    SearchWarehouseUseCase searchWarehouseUseCase;
+
+    /**
+     * Searches for warehouses based on optional filters with pagination and sorting.
+     *
+     * &lt;p&gt;Allows flexible search with any combination of the following filters:
+     * &lt;ul&gt;
+     *   &lt;li&gt;Location: exact match filter for warehouse location&lt;/li&gt;
+     *   &lt;li&gt;Capacity range: minimum and/or maximum warehouse capacity&lt;/li&gt;
+     *   &lt;li&gt;Sorting: by field name with ascending/descending order&lt;/li&gt;
+     *   &lt;li&gt;Pagination: page number and page size for results&lt;/li&gt;
+     * &lt;/ul&gt;
+     *
+     * @param location the warehouse location to filter by (optional, can be null)
+     * @param minCapacity minimum warehouse capacity (optional, can be null)
+     * @param maxCapacity maximum warehouse capacity (optional, can be null)
+     * @param sortBy the field name to sort results by (e.g., &quot;capacity&quot;, &quot;location&quot;)
+     * @param sortOrder sorting direction: &quot;asc&quot; for ascending or &quot;desc&quot; for descending
+     * @param page the page number (0-indexed, defaults to 0 if null)
+     * @param pageSize the number of results per page (defaults to 10 if null)
+     * @return a list of warehouses matching the search criteria, converted to REST response format
+     * @throws WebApplicationException if search parameters are invalid (400 Bad Request)
+     */
+    @Override
+    public List&lt;com.warehouse.api.beans.Warehouse&gt; searchWarehouses(
+            String location,
+            BigInteger minCapacity,
+            BigInteger maxCapacity,
+            String sortBy,
+            String sortOrder,
+            BigInteger page,
+            BigInteger pageSize) {
+
+<span class="fc" id="L101">        LOGGER.info(&quot;Request received: search warehouses&quot;);</span>
+
+<span class="fc bfc" id="L103" title="All 2 branches covered.">        Integer minCap = minCapacity != null ? minCapacity.intValue() : null;</span>
+<span class="fc bfc" id="L104" title="All 2 branches covered.">        Integer maxCap = maxCapacity != null ? maxCapacity.intValue() : null;</span>
+
+<span class="pc bpc" id="L106" title="1 of 2 branches missed.">        int pageValue = page != null ? page.intValue() : 0;</span>
+<span class="pc bpc" id="L107" title="1 of 2 branches missed.">        int pageSizeValue = pageSize != null ? pageSize.intValue() : 10;</span>
+
+<span class="fc" id="L109">        return searchWarehouseUseCase.search(</span>
+                location,
+                minCap,
+                maxCap,
+                pageValue,
+                pageSizeValue,
+                sortBy,
+                sortOrder
+        )
+<span class="fc" id="L118">        .stream()</span>
+<span class="fc" id="L119">        .map(this::toResponse)</span>
+<span class="fc" id="L120">        .toList();</span>
+    }
+    /* ============================================================
+       LIST
+    ============================================================ */
+
+    /**
+     * Retrieves all active (non-archived) warehouse units.
+     *
+     * &lt;p&gt;Returns a complete list of all warehouses in the system. This operation
+     * does not apply any filters or pagination.
+     *
+     * @return a list of all active warehouses, converted to REST response format,
+     *         or an empty list if no warehouses exist
+     */
+    @Override
+    public List&lt;com.warehouse.api.beans.Warehouse&gt; listAllWarehousesUnits() {
+
+<span class="fc" id="L138">        LOGGER.info(&quot;Request received: list all warehouses&quot;);</span>
+
+<span class="fc" id="L140">        return getWarehouseUseCase.findAll()</span>
+<span class="fc" id="L141">                .stream()</span>
+<span class="fc" id="L142">                .map(this::toResponse)</span>
+<span class="fc" id="L143">                .toList();</span>
+    }
+
+    /* ============================================================
+       CREATE
+    ============================================================ */
+
+    /**
+     * Creates a new warehouse unit.
+     *
+     * &lt;p&gt;Initiates the warehouse creation process using the provided data. The newly created
+     * warehouse is immediately persisted and returned with its assigned properties.
+     *
+     * @param data the warehouse data containing business unit code, location, and capacity
+     * @return the newly created warehouse with all assigned properties, converted to REST response format
+     * @throws WebApplicationException with 400 Bad Request status if:
+     *         &lt;ul&gt;
+     *           &lt;li&gt;Warehouse with the same business unit code already exists&lt;/li&gt;
+     *           &lt;li&gt;Required fields are missing or invalid&lt;/li&gt;
+     *           &lt;li&gt;Business unit code format is invalid&lt;/li&gt;
+     *         &lt;/ul&gt;
+     */
+    @Override
+    public com.warehouse.api.beans.Warehouse createANewWarehouseUnit(
+            @NotNull com.warehouse.api.beans.Warehouse data) {
+
+<span class="fc" id="L169">        LOGGER.infof(&quot;Request received: create warehouse %s&quot;, data.getBusinessUnitCode());</span>
+
+        try {
+
+<span class="fc" id="L173">            createWarehouseOperation.create(</span>
+<span class="fc" id="L174">                    data.getBusinessUnitCode(),</span>
+<span class="fc" id="L175">                    data.getLocation(),</span>
+<span class="fc" id="L176">                    data.getCapacity().intValue()</span>
+            );
+
+<span class="fc" id="L179">            Warehouse domain =</span>
+                    getWarehouseUseCase
+<span class="fc" id="L181">                            .findByBusinessUnitCode(data.getBusinessUnitCode());</span>
+
+<span class="fc" id="L183">            LOGGER.infof(&quot;Warehouse created successfully: %s&quot;, data.getBusinessUnitCode());</span>
+
+<span class="fc" id="L185">            return toResponse(domain);</span>
+
+<span class="nc" id="L187">        } catch (IllegalArgumentException e) {</span>
+
+<span class="nc" id="L189">            LOGGER.errorf(&quot;Error creating warehouse: %s&quot;, e.getMessage());</span>
+
+<span class="nc" id="L191">            throw new WebApplicationException(e.getMessage(), 400);</span>
+        }
+    }
+
+    /* ============================================================
+       GET BY ID
+    ============================================================ */
+
+    /**
+     * Retrieves a specific warehouse unit by its business unit code.
+     *
+     * @param id the business unit code identifying the warehouse (must not be null)
+     * @return the warehouse with matching business unit code, converted to REST response format
+     * @throws WebApplicationException with 404 Not Found status if:
+     *         &lt;ul&gt;
+     *           &lt;li&gt;No warehouse exists with the provided business unit code&lt;/li&gt;
+     *           &lt;li&gt;The warehouse has been archived&lt;/li&gt;
+     *         &lt;/ul&gt;
+     */
+    @Override
+    public com.warehouse.api.beans.Warehouse getAWarehouseUnitByID(String id) {
+
+<span class="fc" id="L213">        LOGGER.infof(&quot;Request received: get warehouse %s&quot;, id);</span>
+
+<span class="fc" id="L215">        Warehouse domain =</span>
+<span class="fc" id="L216">                getWarehouseUseCase.findByBusinessUnitCode(id);</span>
+
+<span class="fc bfc" id="L218" title="All 2 branches covered.">        if (domain == null) {</span>
+
+<span class="fc" id="L220">            LOGGER.warnf(&quot;Warehouse not found: %s&quot;, id);</span>
+
+<span class="fc" id="L222">            throw new WebApplicationException(</span>
+                    &quot;Warehouse with business unit code '&quot; + id + &quot;' not found&quot;,
+                    404);
+        }
+
+<span class="fc" id="L227">        return toResponse(domain);</span>
+    }
+
+    /* ============================================================
+       ARCHIVE
+    ============================================================ */
+
+    /**
+     * Archives (soft-deletes) a warehouse unit by its business unit code.
+     *
+     * &lt;p&gt;Marks the warehouse as archived without physically deleting it from the database.
+     * Archived warehouses are excluded from normal queries but retained for historical and
+     * audit trail purposes. This operation is idempotent.
+     *
+     * @param id the business unit code of the warehouse to archive (must not be null)
+     * @throws WebApplicationException with 400 Bad Request status if:
+     *         &lt;ul&gt;
+     *           &lt;li&gt;Warehouse is not found&lt;/li&gt;
+     *           &lt;li&gt;Warehouse is already archived&lt;/li&gt;
+     *           &lt;li&gt;Archive operation fails due to validation constraints&lt;/li&gt;
+     *         &lt;/ul&gt;
+     */
+    @Override
+    public void archiveAWarehouseUnitByID(String id) {
+
+<span class="fc" id="L252">        LOGGER.infof(&quot;Request received: archive warehouse %s&quot;, id);</span>
+
+        try {
+
+<span class="fc" id="L256">            archiveWarehouseOperation.archive(id);</span>
+
+<span class="fc" id="L258">            LOGGER.infof(&quot;Warehouse archived successfully: %s&quot;, id);</span>
+
+<span class="fc" id="L260">        } catch (IllegalArgumentException e) {</span>
+
+<span class="fc" id="L262">            LOGGER.errorf(&quot;Error archiving warehouse %s : %s&quot;, id, e.getMessage());</span>
+
+<span class="fc" id="L264">            throw new WebApplicationException(e.getMessage(), 400);</span>
+<span class="fc" id="L265">        }</span>
+<span class="fc" id="L266">    }</span>
+
+    /* ============================================================
+       REPLACE
+    ============================================================ */
+
+    /**
+     * Replaces/updates the data of an existing active warehouse.
+     *
+     * &lt;p&gt;Updates the warehouse's location, capacity, and current stock. The business unit code
+     * cannot be modified. This operation performs an optimistic locking check to prevent
+     * concurrent modification conflicts.
+     *
+     * @param businessUnitCode the business unit code of the warehouse to update (must not be null)
+     * @param data the new warehouse data (location, capacity, stock)
+     * @return the updated warehouse with all current properties, converted to REST response format
+     * @throws WebApplicationException with 400 Bad Request status if:
+     *         &lt;ul&gt;
+     *           &lt;li&gt;Warehouse is not found&lt;/li&gt;
+     *           &lt;li&gt;Warehouse is archived&lt;/li&gt;
+     *           &lt;li&gt;Provided data fails validation&lt;/li&gt;
+     *           &lt;li&gt;Optimistic locking conflict detected (concurrent modification)&lt;/li&gt;
+     *         &lt;/ul&gt;
+     */
+    @Override
+    public com.warehouse.api.beans.Warehouse replaceTheCurrentActiveWarehouse(
+            String businessUnitCode,
+            @NotNull com.warehouse.api.beans.Warehouse data) {
+
+<span class="fc" id="L295">        LOGGER.infof(&quot;Request received: replace warehouse %s&quot;, businessUnitCode);</span>
+
+        try {
+
+<span class="fc" id="L299">            replaceWarehouseOperation.replace(</span>
+                    businessUnitCode,
+<span class="fc" id="L301">                    data.getLocation(),</span>
+<span class="fc" id="L302">                    data.getCapacity().intValue(),</span>
+<span class="fc" id="L303">                    data.getStock().intValue()</span>
+            );
+
+<span class="fc" id="L306">            Warehouse domain =</span>
+                    getWarehouseUseCase
+<span class="fc" id="L308">                            .findByBusinessUnitCode(businessUnitCode);</span>
+
+<span class="fc" id="L310">            LOGGER.infof(&quot;Warehouse replaced successfully: %s&quot;, businessUnitCode);</span>
+
+<span class="fc" id="L312">            return toResponse(domain);</span>
+
+<span class="nc" id="L314">        } catch (IllegalArgumentException e) {</span>
+
+<span class="nc" id="L316">            LOGGER.errorf(&quot;Error replacing warehouse %s : %s&quot;,</span>
+<span class="nc" id="L317">                    businessUnitCode, e.getMessage());</span>
+
+<span class="nc" id="L319">            throw new WebApplicationException(</span>
+<span class="nc" id="L320">                    e.getMessage(),</span>
+                    Response.Status.BAD_REQUEST
+            );
+        }
+    }
+
+    /* ============================================================
+       MAPPER
+    ============================================================ */
+
+    /**
+     * Converts a domain warehouse model to a REST API response bean.
+     *
+     * &lt;p&gt;Maps domain model properties to the API bean format for HTTP serialization.
+     * Only non-null properties are mapped.
+     *
+     * @param domain the domain warehouse object (must not be null)
+     * @return the API response bean with properties populated from the domain object
+     */
+    private com.warehouse.api.beans.Warehouse toResponse(Warehouse domain) {
+
+<span class="fc" id="L341">        com.warehouse.api.beans.Warehouse response =</span>
+                new com.warehouse.api.beans.Warehouse();
+
+<span class="fc" id="L344">        response.setBusinessUnitCode(domain.businessUnitCode);</span>
+<span class="fc" id="L345">        response.setLocation(domain.location);</span>
+<span class="fc" id="L346">        response.setCapacity(domain.capacity);</span>
+<span class="fc" id="L347">        response.setStock(domain.stock);</span>
+
+<span class="fc" id="L349">        return response;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>
