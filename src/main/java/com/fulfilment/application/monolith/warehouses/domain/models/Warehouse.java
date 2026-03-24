@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 
 /**
  * Domain model representing a warehouse aggregate.
- * 
+ * public synchronized void archive() {
  * A warehouse is identified by its business unit code and manages inventory
  * at a specific location. It tracks capacity constraints and can be archived.
  * 
@@ -64,7 +64,7 @@ public class Warehouse {
 	 *                                  capacity
 	 * @throws IllegalStateException    if warehouse is archived
 	 */
-	public void addStock(int quantity) {
+	public synchronized void addStock(int quantity) {
 		ensureNotArchived();
 
 		if (quantity <= 0) {
@@ -83,7 +83,7 @@ public class Warehouse {
 	 * 
 	 * @throws IllegalArgumentException if warehouse is already archived
 	 */
-	public void archive() {
+	public synchronized void archive() {
 		if (this.archivedAt != null) {
 			throw new IllegalArgumentException("Warehouse already archived");
 		}
